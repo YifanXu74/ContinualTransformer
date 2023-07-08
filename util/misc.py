@@ -295,6 +295,15 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
     return total_norm
 
 
+def save_merged_model(args, model_without_ddp):
+    output_dir = Path(args.output_dir)
+    checkpoint_path = output_dir / ('checkpoint-merged.pth')
+    model_without_ddp.eval() # set eval to enable lora merging
+    to_save = {
+                'model': model_without_ddp.state_dict(),
+            }
+    save_on_master(to_save, checkpoint_path)
+
 def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler):
     output_dir = Path(args.output_dir)
     epoch_name = str(epoch)

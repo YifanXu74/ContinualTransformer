@@ -128,6 +128,8 @@ def get_args_parser():
     parser.add_argument('--self_regularization', action='store_true')
     parser.add_argument('--reg_loss_weight', default=1., type=float, 
                         help="weight of the self-regularization loss")
+    parser.add_argument('--save_merged_lora_model', action='store_true', 
+                        help='if set True, this script only serves to convert a checkpoint to a merged version (for downstreams).')
 
     # cook
     parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc'])
@@ -239,6 +241,12 @@ def main(args):
     loss_scaler = NativeScaler()
 
     misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
+
+    if args.save_merged_lora_model:
+        assert args.lora_rank > 0
+        assert args.resume != ''
+        misc.save_merged_model(args=args, model_without_ddp=model_without_ddp)
+        exit()
 
     # Set lora training
     if args.exp_name == 'text_mlm':

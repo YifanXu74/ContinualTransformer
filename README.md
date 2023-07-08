@@ -113,7 +113,7 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 3. 目前模型的forward函数仅写了预训练相关代码，下游任务需要自行适配编写相关forward函数、后端head、训练损失、以及输出评测框架。
 4. 目前模型forward输入参数为 samples, mode，目前mode仅支持三种预训练任务: "text_mlm", "image_mim", "image_text_itc"，下游任务需要定义新的mode来传入
 5. 目前模型能支持的最大文本token数量为196，最大图像分辨率为224*224
-6. 下游任务finetune时`lora_rank`一律设置成0就好
+6. 下游任务finetune时`lora_rank`一律设置成0，不要加`--self_regularization`
 7. 下游任务修改可以自行编写main_finetune.py 和 engine_finetune.py，可以参考main_pretrain_cook.py和engine_pretrain.py，可以仿照MAE的代码
 
 目前数据集加载输出格式：
@@ -129,4 +129,14 @@ custom_datasets/image_dataset.py 图像数据集:
         "images_for_vae": torch.stack(images_for_vae), # 仅用于预训练，下游finetune不需要，torch.tensor, [B,3,H/2,W/2]
         }, 
         targets # 分类标签，torch.tensor
+```
+
+CC3M文本MLM预训练模型:
+```
+/userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth
+```
+
+文本下游任务可加载上面这个模型，并指定下面参数:
+```
+--lora_rank 0 --resume $PRETRAINED_CKPT 
 ```
