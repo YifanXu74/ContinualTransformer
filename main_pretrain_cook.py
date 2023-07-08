@@ -68,7 +68,7 @@ def get_args_parser():
     parser.add_argument('--drop_path_rate', default=0.1, type=float)
     parser.add_argument('--d_vae_type', default="dall-e", type=str,
                         help='type of discrete VAE')
-    parser.add_argument('--d_vae_weight_path', default='checkpoint/dall_e_tokenizer_weight/', type=str,
+    parser.add_argument('--d_vae_weight_path', default='checkpoints/dall_e_tokenizer_weight/', type=str,
                         help='weight path of discrete VAE')
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,

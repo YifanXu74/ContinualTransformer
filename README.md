@@ -70,7 +70,7 @@ checkpoints/
 
 Text MLM pre-training:
 ```
-python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
+python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name text_mlm \
 --model vlmo_base_patch16 \
 --data_path data/CC3M/cc3m_captions.json \
@@ -79,7 +79,7 @@ python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
 --log_dir output/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1. \
+--reg_loss_weight 1e2. \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
@@ -89,7 +89,7 @@ python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
 
 Image MIM pre-training:
 ```
-python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
+python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_mim \
 --model vlmo_base_patch16 \
 --data_path data/ILSVRC2012/train/ \
@@ -113,6 +113,7 @@ python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
 3. 目前模型的forward函数仅写了预训练相关代码，下游任务需要自行适配编写相关forward函数、后端head、训练损失、以及输出评测框架。
 4. 目前模型forward输入参数为 samples, mode，目前mode仅支持三种预训练任务: "text_mlm", "image_mim", "image_text_itc"，下游任务需要定义新的mode来传入
 5. 目前模型能支持的最大文本token数量为196，最大图像分辨率为224*224
+6. 下游任务finetune时`lora_rank`一律设置成0就好
 
 目前数据集加载输出格式：
 ```
