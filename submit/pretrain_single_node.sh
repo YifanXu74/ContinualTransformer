@@ -59,8 +59,8 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 --model vlmo_base_patch16 \
 --data_path data/CC3M/cc3m_captions.json \
 --batch_size 384 \
---output_dir output/text_mlm_regloss_1e1/ \
---log_dir output/text_mlm_regloss_1e1/ \
+--output_dir outputs/text_mlm_regloss_1e1/ \
+--log_dir outputs/text_mlm_regloss_1e1/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
 --reg_loss_weight 1e1 \

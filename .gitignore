@@ -2,6 +2,7 @@ __pycache__/
 data/
 checkpoints/
 outputs/
+output/
 .vscode/
 models_mae.py
 main_pretrain.py

@@ -75,8 +75,8 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 --model vlmo_base_patch16 \
 --data_path data/CC3M/cc3m_captions.json \
 --batch_size 384 \
---output_dir output/text_mlm/ \
---log_dir output/text_mlm/ \
+--output_dir outputs/text_mlm/ \
+--log_dir outputs/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
 --reg_loss_weight 1e1 \
@@ -94,8 +94,8 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 --model vlmo_base_patch16 \
 --data_path data/ILSVRC2012/train/ \
 --batch_size 128 \
---output_dir output/image_mim/ \
---log_dir output/image_mim/ \
+--output_dir outputs/image_mim/ \
+--log_dir outputs/image_mim/ \
 --lora_rank 0 \
 --save_per_epochs 20 \
 --epochs 800 \
@@ -121,9 +121,6 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 custom_datasets/text_dataset.py 文本数据集:
         {
         'raw_text': text_list, # ['caption1', 'caption2', ...]
-        'input_ids':text_ids_list, # 对应tokenizer出来的inputs_id
-        'special_tokens_mask':special_tokens_mask_list, # 对应tokenizer出来的special_tokens_mask
-        'attention_mask': attention_mask_list # 对应tokenizer出来的attention_mask
         }
 
 custom_datasets/image_dataset.py 图像数据集:
