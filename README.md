@@ -114,6 +114,7 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 4. 目前模型forward输入参数为 samples, mode，目前mode仅支持三种预训练任务: "text_mlm", "image_mim", "image_text_itc"，下游任务需要定义新的mode来传入
 5. 目前模型能支持的最大文本token数量为196，最大图像分辨率为224*224
 6. 下游任务finetune时`lora_rank`一律设置成0就好
+7. 下游任务修改可以自行编写main_finetune.py 和 engine_finetune.py，可以参考main_pretrain_cook.py和engine_pretrain.py，可以仿照MAE的代码
 
 目前数据集加载输出格式：
 ```
