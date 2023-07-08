@@ -38,7 +38,16 @@ data/
 
 ```
 
-必要模型下载：
+**注意！相关必要模型已上传集群，无需再下载,按步骤建立软链接即可：**
+```
+cd $project_dir
+mkdir checkpoints
+cd checkpoints
+ln -s /userhome/models/BEIT/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth .
+ln -s /userhome/models/DALLE/dall_e_tokenizer_weight .
+```
+
+必要模型下载（仅用于其他客户端复现）：
 ```
 mkdir checkpoints
 cd checkpoints
@@ -65,6 +74,8 @@ checkpoints/
         encoder.pkl
         decoder.pkl
 ```
+
+
 
 ## Pre-training
 
