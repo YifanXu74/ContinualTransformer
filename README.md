@@ -42,10 +42,9 @@ data/
 ```
 cd $project_dir
 mkdir checkpoints
-cd checkpoints
-ln -s /userhome/models/BEIT/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth .
-ln -s /userhome/models/DALLE/dall_e_tokenizer_weight .
-ln -s /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth .
+ln -s /userhome/models/BEIT/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth checkpoints/
+ln -s /userhome/models/DALLE/dall_e_tokenizer_weight checkpoints/
+ln -s /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth checkpoints/
 ```
 
 必要模型下载（仅用于其他客户端复现）：
