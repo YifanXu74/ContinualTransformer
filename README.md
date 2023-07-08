@@ -1,4 +1,16 @@
 ##  Preparation
+**环境依赖**
+目前运行环境：
+```
+cuda==11.7
+python==3.10.11
+torch==2.0.1
+torchvision==0.15.2
+timm==0.3.2
+```
+应该其他环境也可以运行，但是timm必须为0.3.2。其中timm可能和高版本torch存在冲突，解决方法见：[this issue](https://github.com/huggingface/pytorch-image-models/issues/420#issuecomment-776459842)
+
+
 **数据格式**
 
 文本json：[{'caption': xxx}, {'caption': xxx}, {'caption': xxx}, ...], 
