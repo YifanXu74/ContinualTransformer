@@ -27,7 +27,7 @@ from functools import partial
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
-
+import custom_loralib as loralib
 
 class Mlp(nn.Module):
     def __init__(
@@ -37,22 +37,35 @@ class Mlp(nn.Module):
         out_features=None,
         act_layer=nn.GELU,
         drop=0.0,
+        config=None,
     ):
         super().__init__()
+        self.self_regularization = config.self_regularization
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.fc1 = loralib.Linear(in_features, hidden_features, r=config.lora_rank, self_regularization=config.self_regularization)
         self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.fc2 = loralib.Linear(hidden_features, out_features, r=config.lora_rank, self_regularization=config.self_regularization)
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.act(x)
-        x = self.drop(x)
-        x = self.fc2(x)
-        x = self.drop(x)
-        return x
+        if self.self_regularization:
+            reg_loss = x.new_zeros(1)[0]
+            x, loss = self.fc1(x)
+            reg_loss+=loss
+            x = self.act(x)
+            x = self.drop(x)
+            x, loss = self.fc2(x)
+            reg_loss+=loss
+            x = self.drop(x)
+            return x, reg_loss
+        else:
+            x = self.fc1(x)
+            x = self.act(x)
+            x = self.drop(x)
+            x = self.fc2(x)
+            x = self.drop(x)
+            return x
 
 
 class Attention(nn.Module):
@@ -64,14 +77,16 @@ class Attention(nn.Module):
         qk_scale=None,
         attn_drop=0.0,
         proj_drop=0.0,
+        config=None,
     ):
         super().__init__()
+        self.self_regularization = config.self_regularization
         self.num_heads = num_heads
         head_dim = dim // num_heads
         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
         self.scale = qk_scale or head_dim ** -0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=False)
+        self.qkv = loralib.Linear(dim, dim * 3, bias=False, r=config.lora_rank, self_regularization=config.self_regularization)
         if qkv_bias:
             self.q_bias = nn.Parameter(torch.zeros(dim))
             self.v_bias = nn.Parameter(torch.zeros(dim))
@@ -80,17 +95,26 @@ class Attention(nn.Module):
             self.v_bias = None
         
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim)
+        self.proj = loralib.Linear(dim, dim, r=config.lora_rank, self_regularization=config.self_regularization)
         self.proj_drop = nn.Dropout(proj_drop)
 
 
     def forward(self, x, mask=None, relative_position_bias=None):
+        if self.self_regularization:
+            reg_loss = x.new_zeros(1)[0]
         B, N, C = x.shape
 
         qkv_bias = None
         if self.q_bias is not None:
             qkv_bias = torch.cat((self.q_bias, torch.zeros_like(self.v_bias, requires_grad=False), self.v_bias))
-        qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
+        if isinstance(self.qkv, loralib.LoRALayer):
+            if self.self_regularization:
+                qkv, loss = self.qkv(x, custom_bias=qkv_bias)
+                reg_loss += loss
+            else:
+                qkv = self.qkv(x, custom_bias=qkv_bias)
+        else:
+            qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
         qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
 
         q, k, v = (
@@ -103,7 +127,7 @@ class Attention(nn.Module):
         attn = (q.float() @ k.float().transpose(-2, -1))
         
         if relative_position_bias is not None:
-            attn = attn + relative_position_bias.unsqueeze(0)
+            attn = attn + relative_position_bias.unsqueeze(0)[:,:,:attn.shape[2],:attn.shape[3]]
 
         if mask is not None:
             mask = mask.bool()
@@ -112,9 +136,17 @@ class Attention(nn.Module):
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x = self.proj(x)
+        if self.self_regularization:
+            x, loss = self.proj(x)
+            reg_loss += loss
+        else:
+            x = self.proj(x)
         x = self.proj_drop(x)
-        return x
+
+        if self.self_regularization:
+            return x, reg_loss
+        else:
+            return x
 
 
 class Block(nn.Module):
@@ -132,8 +164,10 @@ class Block(nn.Module):
         norm_layer=nn.LayerNorm,
         layer_scale_init_values=0.1,
         max_text_len=40,
+        config=None,
     ):
         super().__init__()
+        self.self_regularization = config.self_regularization
         self.norm1 = norm_layer(dim)
         self.attn = Attention(
             dim,
@@ -142,6 +176,7 @@ class Block(nn.Module):
             qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=drop,
+            config=config,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -166,6 +201,7 @@ class Block(nn.Module):
             hidden_features=mlp_hidden_dim,
             act_layer=act_layer,
             drop=drop,
+            config=config,
         )
         
         self.gamma_1 = \
@@ -178,7 +214,13 @@ class Block(nn.Module):
         self.max_text_len = max_text_len
 
     def forward(self, x, mask=None, relative_position_bias=None):
-        x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x), mask=mask, relative_position_bias=relative_position_bias))
+        if self.self_regularization:
+            reg_loss = x.new_zeros(1)[0]
+            x_attn, loss = self.attn(self.norm1(x), mask=mask, relative_position_bias=relative_position_bias)
+            reg_loss += loss
+        else:
+            x_attn = self.attn(self.norm1(x), mask=mask, relative_position_bias=relative_position_bias)
+        x = x + self.drop_path(self.gamma_1 * x_attn)
 
         # if modality_type == "image":
         #     x = x + self.drop_path(self.gamma_2 * self.mlp_imag(self.norm2_imag(x)))
@@ -191,9 +233,18 @@ class Block(nn.Module):
         #     x_imag = x_imag + self.drop_path(self.gamma_2 * self.mlp_imag(self.norm2_imag(x_imag)))
         #     x = torch.cat([x_text, x_imag], dim=1)
         
-        x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
+        if self.self_regularization:
+            x_mlp, loss = self.mlp(self.norm2(x))
+            reg_loss += loss
+        else:
+            x_mlp = self.mlp(self.norm2(x))
 
-        return x
+        x = x + self.drop_path(self.gamma_2 * x_mlp)
+
+        if self.self_regularization:
+            return x, reg_loss
+        else:
+            return x
 
 
 class PatchEmbed(nn.Module):
@@ -324,6 +375,7 @@ class LoraTransformer(nn.Module):
                     norm_layer=norm_layer,
                     layer_scale_init_values=layer_scale_init_values,
                     max_text_len=config.max_text_len,
+                    config = config
                 )
                 for i in range(depth)
             ]
@@ -348,10 +400,16 @@ class LoraTransformer(nn.Module):
     def no_weight_decay(self):
         return {"pos_embed", "cls_token"}
 
-    def visual_embed(self, _x):
+    def visual_embed(self, _x, bool_mask=None, mask_token=None):
         x = self.patch_embed(_x)
         x = x.flatten(2).transpose(1, 2)
         B, L, _ = x.shape
+
+        if bool_mask is not None:
+            # replace the masked visual tokens by mask_token
+            mask_token = mask_token.expand(B, L, -1)
+            w = bool_mask.unsqueeze(-1).type_as(mask_token)
+            x = x * (1 - w) + mask_token * w
 
         cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)

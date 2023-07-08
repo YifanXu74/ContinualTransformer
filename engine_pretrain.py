@@ -17,19 +17,12 @@ import torch
 import util.misc as misc
 import util.lr_sched as lr_sched
 
-import loralib as lora
-
 def train_one_epoch(model: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, loss_scaler,
                     log_writer=None,
                     args=None):
     model.train(True)
-    if args.lora_rank>0:
-        # try:
-        lora.mark_only_lora_as_trainable(model)
-        # except:
-        #     lora.mark_only_lora_as_trainable(model.module)
 
     metric_logger = misc.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', misc.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -50,16 +43,19 @@ def train_one_epoch(model: torch.nn.Module,
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
         if args.exp_name == 'text_mlm':
+            samples['target_device']=device
             with torch.cuda.amp.autocast():
-                samples['target_device']=device
-                loss, acc = model(samples, args.exp_name)
-                metric_logger.update(mlm_acc=acc.item())
+                losses, acc = model(samples, args.exp_name)
+                loss = sum(losses.values())
+            metric_logger.update(mlm_acc=acc.item())
+        elif args.exp_name == 'image_mim':
+            samples = {k: v.to(device, non_blocking=True) for k,v in samples.items()}
+            with torch.cuda.amp.autocast():
+                losses = model(samples, args.exp_name)
+                loss = sum(losses.values())
         else:
-            # raise NotImplementedError
-            # cook: need debug
-            samples = samples.to(device, non_blocking=True)
-            with torch.cuda.amp.autocast():
-                loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
+            raise NotImplementedError
+
 
         loss_value = loss.item()
 
@@ -76,6 +72,8 @@ def train_one_epoch(model: torch.nn.Module,
         torch.cuda.synchronize()
 
         metric_logger.update(loss=loss_value)
+        losses_value ={k: v for k,v in losses.items()} 
+        metric_logger.update(**losses_value)
 
         lr = optimizer.param_groups[0]["lr"]
         metric_logger.update(lr=lr)

@@ -40,13 +40,13 @@ class ProcessorForWholeWordMask(torch.nn.Module):
         self.tokenizer = tokenizer
         self.mlm_probability = mlm_probability
     
-    def _torch_collate_batch(self, examples):
+    def _torch_collate_batch(self, examples, device):
         """Collate `examples` into a batch, using the information in `tokenizer` for padding if necessary."""
         pad_to_multiple_of = None
 
         # Tensorize if necessary.
         if isinstance(examples[0], (list, tuple, np.ndarray)):
-            examples = [torch.tensor(e, dtype=torch.long) for e in examples]
+            examples = [torch.tensor(e, dtype=torch.long, device=device) for e in examples]
 
         length_of_first = examples[0].size(0)
 
@@ -122,12 +122,11 @@ class ProcessorForWholeWordMask(torch.nn.Module):
         mask_labels = [1 if i in covered_indexes else 0 for i in range(len(input_tokens))]
         return mask_labels
     
-    def torch_mask_tokens(self, inputs: Any, mask_labels: Any) -> Tuple[Any, Any]:
+    def torch_mask_tokens(self, inputs: Any, mask_labels: Any, device) -> Tuple[Any, Any]:
         """
         Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. Set
         'mask_labels' means we use whole word mask (wwm), we directly mask idxs according to it's ref.
         """
-        import torch
 
         if self.tokenizer.mask_token is None:
             raise ValueError(
@@ -142,7 +141,7 @@ class ProcessorForWholeWordMask(torch.nn.Module):
         special_tokens_mask = [
             self.tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in labels.tolist()
         ]
-        probability_matrix.masked_fill_(torch.tensor(special_tokens_mask, dtype=torch.bool), value=0.0)
+        probability_matrix.masked_fill_(torch.tensor(special_tokens_mask, dtype=torch.bool, device=device), value=0.0)
         if self.tokenizer._pad_token is not None:
             padding_mask = labels.eq(self.tokenizer.pad_token_id)
             probability_matrix.masked_fill_(padding_mask, value=0.0)
@@ -151,18 +150,19 @@ class ProcessorForWholeWordMask(torch.nn.Module):
         labels[~masked_indices] = -100  # We only compute loss on masked tokens
 
         # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
-        indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
+        indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8, device=device)).bool() & masked_indices
         inputs[indices_replaced] = self.tokenizer.convert_tokens_to_ids(self.tokenizer.mask_token)
 
         # 10% of the time, we replace masked input tokens with random word
-        indices_random = torch.bernoulli(torch.full(labels.shape, 0.5)).bool() & masked_indices & ~indices_replaced
-        random_words = torch.randint(len(self.tokenizer), labels.shape, dtype=torch.long)
+        indices_random = torch.bernoulli(torch.full(labels.shape, 0.5, device=device)).bool() & masked_indices & ~indices_replaced
+        random_words = torch.randint(len(self.tokenizer), labels.shape, dtype=torch.long, device=device)
         inputs[indices_random] = random_words[indices_random]
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
         return inputs, labels
     
-    def forward(self, examples):
+    @torch.no_grad()
+    def forward(self, examples, device):
         if isinstance(examples, Mapping):
             input_ids = examples["input_ids"]
             examples = [{"input_ids": e} for e in input_ids]
@@ -172,7 +172,7 @@ class ProcessorForWholeWordMask(torch.nn.Module):
             input_ids = examples
             examples = [{"input_ids": e} for e in examples]
 
-        batch_input = self._torch_collate_batch(input_ids)
+        batch_input = self._torch_collate_batch(input_ids, device=device)
     
         mask_labels = []
         for e in examples:
@@ -190,8 +190,8 @@ class ProcessorForWholeWordMask(torch.nn.Module):
                         ref_tokens[i] = "##" + ref_tokens[i]
             mask_labels.append(self._whole_word_mask(ref_tokens))
         
-        batch_mask = self._torch_collate_batch(mask_labels)
-        inputs, labels = self.torch_mask_tokens(batch_input, batch_mask)
+        batch_mask = self._torch_collate_batch(mask_labels, device=device)
+        inputs, labels = self.torch_mask_tokens(batch_input, batch_mask, device=device)
 
         return {"input_ids": inputs, "labels": labels}
 

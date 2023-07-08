@@ -1,156 +1,121 @@
-## Masked Autoencoders: A PyTorch Implementation
+##  Preparation
+**数据格式**
 
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/11435359/146857310-f258c86c-fde6-48e8-9cee-badd2b21bd2c.png" width="480">
-</p>
+文本json：[{'caption': xxx}, {'caption': xxx}, {'caption': xxx}, ...], 
 
+图像imagenet
 
-This is a PyTorch/GPU re-implementation of the paper [Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377):
+按以下方式存储：
+
 ```
-@Article{MaskedAutoencoders2021,
-  author  = {Kaiming He and Xinlei Chen and Saining Xie and Yanghao Li and Piotr Doll{\'a}r and Ross Girshick},
-  journal = {arXiv:2111.06377},
-  title   = {Masked Autoencoders Are Scalable Vision Learners},
-  year    = {2021},
-}
+data/
+    ILSVRC2012/
+        train/
+            n01440764/
+                n01440764_18.JPEG
+                ...
+            ...
+        val/
+            n01440712/
+                n01440212_38.JPEG
+                ...
+            ...
+    
+    CC3M/
+        cc3m_captions.json
+
 ```
 
-* The original implementation was in TensorFlow+TPU. This re-implementation is in PyTorch+GPU.
+必要模型下载：
+```
+mkdir checkpoints
+cd checkpoints
 
-* This repo is a modification on the [DeiT repo](https://github.com/facebookresearch/deit). Installation and preparation follow that repo.
+wget -O checkpoints/beit_base_patch16_224_pt22k_ft22kto1k.pth https://conversationhub.blob.core.windows.net/beit-share-public/beit/beit_base_patch16_224_pt22k_ft22k.pth?sv=2021-10-04&st=2023-06-08T11%3A16%3A02Z&se=2033-06-09T11%3A16%3A00Z&sr=c&sp=r&sig=N4pfCVmSeq4L4tS8QbrFVsX6f6q844eft8xSuXdxU48%3D
 
-* This repo is based on [`timm==0.3.2`](https://github.com/rwightman/pytorch-image-models), for which a [fix](https://github.com/rwightman/pytorch-image-models/issues/420#issuecomment-776459842) is needed to work with PyTorch 1.8.1+.
+mkdir checkpoints/dall_e_tokenizer_weight
 
-### Catalog
+wget -O checkpoints/dall_e_tokenizer_weight/encoder.pkl https://cdn.openai.com/dall-e/encoder.pkl
 
-- [x] Visualization demo
-- [x] Pre-trained checkpoints + fine-tuning code
-- [x] Pre-training code
+wget -O checkpoints/dall_e_tokenizer_weight/decoder.pkl https://cdn.openai.com/dall-e/decoder.pkl
 
-### Visualization demo
+```
+转换beit权重：
+```
+python util/convert_beit_ckpt.py
+```
+最终得到checkponts目录如下：
+```
+checkpoints/
+    beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth
+    beit_base_patch16_224_pt22k_ft22kto1k.pth
+    dall_e_tokenizer_weight/
+        encoder.pkl
+        decoder.pkl
+```
 
-Run our interactive visualization demo using [Colab notebook](https://colab.research.google.com/github/facebookresearch/mae/blob/main/demo/mae_visualize.ipynb) (no GPU needed):
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/11435359/147859292-77341c70-2ed8-4703-b153-f505dcb6f2f8.png" width="600">
-</p>
+## Pre-training
 
-### Fine-tuning with pre-trained checkpoints
+Text MLM pre-training:
+```
+python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
+--exp_name text_mlm \
+--model vlmo_base_patch16 \
+--data_path data/CC3M/cc3m_captions.json \
+--batch_size 384 \
+--output_dir output/text_mlm/ \
+--log_dir output/text_mlm/ \
+--resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--lora_rank 64 \
+--reg_loss_weight 1. \
+--self_regularization \
+--save_per_epochs 20 \
+--epochs 100 \
+--warmup_epochs 40 \
+--blr 1.5e-4 --weight_decay 0.05 \
+```
 
-The following table provides the pre-trained checkpoints used in the paper, converted from TF/TPU to PT/GPU:
-<table><tbody>
-<!-- START TABLE -->
-<!-- TABLE HEADER -->
-<th valign="bottom"></th>
-<th valign="bottom">ViT-Base</th>
-<th valign="bottom">ViT-Large</th>
-<th valign="bottom">ViT-Huge</th>
-<!-- TABLE BODY -->
-<tr><td align="left">pre-trained checkpoint</td>
-<td align="center"><a href="https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth">download</a></td>
-<td align="center"><a href="https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_large.pth">download</a></td>
-<td align="center"><a href="https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth">download</a></td>
-</tr>
-<tr><td align="left">md5</td>
-<td align="center"><tt>8cad7c</tt></td>
-<td align="center"><tt>b8b06e</tt></td>
-<td align="center"><tt>9bdbb0</tt></td>
-</tr>
-</tbody></table>
+Image MIM pre-training:
+```
+python -m torch.distributed.launch --nproc_per_node=8 main_pretrain_cook.py \
+--exp_name image_mim \
+--model vlmo_base_patch16 \
+--data_path data/ILSVRC2012/train/ \
+--batch_size 128 \
+--output_dir output/image_mim/ \
+--log_dir output/image_mim/ \
+--lora_rank 0 \
+--save_per_epochs 20 \
+--epochs 800 \
+--warmup_epochs 40 \
+--blr 1.5e-4 --weight_decay 0.05 \
+```
 
-The fine-tuning instruction is in [FINETUNE.md](FINETUNE.md).
+# Finetuning
+各个下游任务需要自行编写框架，目前代码框架基于MAE代码修改。
 
-By fine-tuning these pre-trained models, we rank #1 in these classification tasks (detailed in the paper):
-<table><tbody>
-<!-- START TABLE -->
-<!-- TABLE HEADER -->
-<th valign="bottom"></th>
-<th valign="bottom">ViT-B</th>
-<th valign="bottom">ViT-L</th>
-<th valign="bottom">ViT-H</th>
-<th valign="bottom">ViT-H<sub>448</sub></th>
-<td valign="bottom" style="color:#C0C0C0">prev best</td>
-<!-- TABLE BODY -->
-<tr><td align="left">ImageNet-1K (no external data)</td>
-<td align="center">83.6</td>
-<td align="center">85.9</td>
-<td align="center">86.9</td>
-<td align="center"><b>87.8</b></td>
-<td align="center" style="color:#C0C0C0">87.1</td>
-</tr>
-<td colspan="5"><font size="1"><em>following are evaluation of the same model weights (fine-tuned in original ImageNet-1K):</em></font></td>
-<tr>
-</tr>
-<tr><td align="left">ImageNet-Corruption (error rate) </td>
-<td align="center">51.7</td>
-<td align="center">41.8</td>
-<td align="center"><b>33.8</b></td>
-<td align="center">36.8</td>
-<td align="center" style="color:#C0C0C0">42.5</td>
-</tr>
-<tr><td align="left">ImageNet-Adversarial</td>
-<td align="center">35.9</td>
-<td align="center">57.1</td>
-<td align="center">68.2</td>
-<td align="center"><b>76.7</b></td>
-<td align="center" style="color:#C0C0C0">35.8</td>
-</tr>
-<tr><td align="left">ImageNet-Rendition</td>
-<td align="center">48.3</td>
-<td align="center">59.9</td>
-<td align="center">64.4</td>
-<td align="center"><b>66.5</b></td>
-<td align="center" style="color:#C0C0C0">48.7</td>
-</tr>
-<tr><td align="left">ImageNet-Sketch</td>
-<td align="center">34.5</td>
-<td align="center">45.3</td>
-<td align="center">49.6</td>
-<td align="center"><b>50.9</b></td>
-<td align="center" style="color:#C0C0C0">36.0</td>
-</tr>
-<td colspan="5"><font size="1"><em>following are transfer learning by fine-tuning the pre-trained MAE on the target dataset:</em></font></td>
-</tr>
-<tr><td align="left">iNaturalists 2017</td>
-<td align="center">70.5</td>
-<td align="center">75.7</td>
-<td align="center">79.3</td>
-<td align="center"><b>83.4</b></td>
-<td align="center" style="color:#C0C0C0">75.4</td>
-</tr>
-<tr><td align="left">iNaturalists 2018</td>
-<td align="center">75.4</td>
-<td align="center">80.1</td>
-<td align="center">83.0</td>
-<td align="center"><b>86.8</b></td>
-<td align="center" style="color:#C0C0C0">81.2</td>
-</tr>
-<tr><td align="left">iNaturalists 2019</td>
-<td align="center">80.5</td>
-<td align="center">83.4</td>
-<td align="center">85.7</td>
-<td align="center"><b>88.3</b></td>
-<td align="center" style="color:#C0C0C0">84.1</td>
-</tr>
-<tr><td align="left">Places205</td>
-<td align="center">63.9</td>
-<td align="center">65.8</td>
-<td align="center">65.9</td>
-<td align="center"><b>66.8</b></td>
-<td align="center" style="color:#C0C0C0">66.0</td>
-</tr>
-<tr><td align="left">Places365</td>
-<td align="center">57.9</td>
-<td align="center">59.4</td>
-<td align="center">59.8</td>
-<td align="center"><b>60.3</b></td>
-<td align="center" style="color:#C0C0C0">58.0</td>
-</tr>
-</tbody></table>
+**注意：**
 
-### Pre-training
+1. 目前只修改了预训练相关代码，finetune部分（如main_finetune.py和engine_finetune.py）没有修改，需要自行适配
+2. 目前数据加载均为自己实现，见`custom_datasets/`,没有用MAE代码，下游任务需要自行修改撰写相关数据加载
+3. 目前模型的forward函数仅写了预训练相关代码，下游任务需要自行适配编写相关forward函数、后端head、训练损失、以及输出评测框架。
+4. 目前模型forward输入参数为 samples, mode，目前mode仅支持三种预训练任务: "text_mlm", "image_mim", "image_text_itc"，下游任务需要定义新的mode来传入
+5. 目前模型能支持的最大文本token数量为196，最大图像分辨率为224*224
 
-The pre-training instruction is in [PRETRAIN.md](PRETRAIN.md).
+目前数据集加载输出格式：
+```
+custom_datasets/text_dataset.py 文本数据集:
+        {
+        'raw_text': text_list, # ['caption1', 'caption2', ...]
+        'input_ids':text_ids_list, # 对应tokenizer出来的inputs_id
+        'special_tokens_mask':special_tokens_mask_list, # 对应tokenizer出来的special_tokens_mask
+        'attention_mask': attention_mask_list # 对应tokenizer出来的attention_mask
+        }
 
-### License
-
-This project is under the CC-BY-NC 4.0 license. See [LICENSE](LICENSE) for details.
+custom_datasets/image_dataset.py 图像数据集:
+        {
+        "images": torch.stack(images), # 训练用图像, torch.tensor, [B,3,H,W]
+        "images_for_vae": torch.stack(images_for_vae), # 仅用于预训练，下游finetune不需要，torch.tensor, [B,3,H/2,W/2]
+        }, 
+        targets # 分类标签，torch.tensor
+```

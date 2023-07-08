@@ -30,7 +30,7 @@ from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.resnet import resnet26d, resnet50d
 from timm.models.registry import register_model
 
-from loralib import Linear as LoraLinear
+from custom_loralib import Linear as LoraLinear
 
 
 def _cfg(url='', **kwargs):

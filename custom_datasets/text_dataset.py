@@ -22,10 +22,11 @@ class TextDataset(torch.utils.data.Dataset):
         self.ann = []
         if not isinstance(ann_file, (list, tuple)):
             ann_file = [ann_file]
+        print('loading data files...')
         for f in ann_file:
             self.ann += json.load(open(f,'r'))
-        self.max_text_len = max_text_len
-        self.tokenizer = get_pretrained_tokenizer("bert-base-uncased")
+        # self.max_text_len = max_text_len
+        # self.tokenizer = get_pretrained_tokenizer("bert-base-uncased")
 
     def __len__(self):
         return len(self.ann)
@@ -36,18 +37,22 @@ class TextDataset(torch.utils.data.Dataset):
             caption = random.choice(ann)
         else:
             caption = ann
-        encoding = self.tokenizer(
-            caption,
-            padding="max_length",
-            truncation=True,
-            max_length=self.max_text_len,
-            return_special_tokens_mask=True,
-        )
+        # encoding = self.tokenizer(
+        #     caption,
+        #     padding="max_length",
+        #     truncation=True,
+        #     max_length=self.max_text_len,
+        #     return_special_tokens_mask=True,
+        # )
 
         return {
             "raw_text": caption,
-            "encoded_text": encoding,
+            # "encoded_text": encoding,
         }
+
+def simple_text_collate_fn(batch):
+    return {'raw_text': [b['raw_text'] for b in batch]}, None
+
 
 def text_collate_fn(batch):
     text_list = []

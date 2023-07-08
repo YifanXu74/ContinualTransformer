@@ -6,3 +6,9 @@ outputs/
 models_mae.py
 main_pretrain.py
 debug.ipynb
+logs/
+timm_models.py
+submitit_finetune.py
+submitit_linprobe.py
+submitit_pretrain.py
+models_vit.py

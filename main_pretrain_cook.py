@@ -28,6 +28,7 @@ assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
 
 import util.misc as misc
+
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
 import models_cook
@@ -35,6 +36,8 @@ import models_cook
 from engine_pretrain import train_one_epoch
 
 import custom_datasets
+
+import custom_loralib
 
 
 
@@ -45,6 +48,7 @@ def get_args_parser():
     parser.add_argument('--epochs', default=400, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
+    parser.add_argument('--save_per_epochs', default=20, type=int)
 
     # Model parameters
     parser.add_argument('--model', default='vlmo_base_patch16', type=str, metavar='MODEL',
@@ -52,6 +56,8 @@ def get_args_parser():
 
     parser.add_argument('--image_size', default=224, type=int,
                         help='images input size')
+    parser.add_argument('--second_image_size', default=112, type=int,
+                        help='images input size for discrete vae')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
                         help='Masking ratio (percentage of removed patches).')
@@ -59,8 +65,11 @@ def get_args_parser():
     parser.add_argument('--norm_pix_loss', action='store_true',
                         help='Use (per-patch) normalized pixels as targets for computing loss')
     parser.set_defaults(norm_pix_loss=False)
-    
     parser.add_argument('--drop_path_rate', default=0.1, type=float)
+    parser.add_argument('--d_vae_type', default="dall-e", type=str,
+                        help='type of discrete VAE')
+    parser.add_argument('--d_vae_weight_path', default='checkpoint/dall_e_tokenizer_weight/', type=str,
+                        help='weight path of discrete VAE')
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
                         help='weight decay (default: 0.05)')
@@ -97,6 +106,12 @@ def get_args_parser():
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
     parser.set_defaults(pin_mem=True)
 
+    parser.add_argument('--disable_imagenet_default_mean_and_std', action='store_true')
+    parser.add_argument('--train_interpolation', type=str, default='bicubic',
+                        help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
+    parser.add_argument('--second_interpolation', type=str, default='lanczos',
+                        help='Interpolation for discrete vae (random, bilinear, bicubic default: "lanczos")')
+
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')
@@ -108,16 +123,24 @@ def get_args_parser():
     
     # lora training
     parser.add_argument('--lora_rank', default=0, type=int)
+    parser.add_argument('--exception', default=['norm.weight', 'norm.bias'], type=list,
+                         help='Non-lora parameters kept trainng with lora')
+    parser.add_argument('--self_regularization', action='store_true')
+    parser.add_argument('--reg_loss_weight', default=1., type=float, 
+                        help="weight of the self-regularization loss")
 
     # cook
     parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc'])
 
-    # text
+    # languge modeling 
     parser.add_argument('--max_text_len', default=196, type=int)
     parser.add_argument('--max_text_len_of_initckpt', default=196, type=int)
     parser.add_argument('--vocab_size', default=30522, type=int)
     parser.add_argument('--mlm_probability', default=0.15, type=float)
 
+    # image modeling
+    parser.add_argument('--mim_probability', default=0.55, type=float)
+    parser.add_argument('--img_vocab_size', default=8192, type=int)
     return parser
 
 
@@ -139,17 +162,20 @@ def main(args):
     # ------------------------------------
     # dataset
     if args.exp_name == 'image_mim':
-        # simple augmentation
-        transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(args.image_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        collate_fn = None
+        assert not args.self_regularization, 'MIM is the first pre-training step, no LoRA parameters are provided.'
+        # # simple augmentation
+        # transform_train = transforms.Compose([
+        #         transforms.RandomResizedCrop(args.image_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
+        #         transforms.RandomHorizontalFlip(),
+        #         transforms.ToTensor(),
+        #         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        # dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
+        # collate_fn = None
+        dataset_train = custom_datasets.build_image_pretraining_dataset(args)
+        collate_fn = custom_datasets.simple_image_collate_fn
     elif args.exp_name == 'text_mlm':
         dataset_train = custom_datasets.TextDataset(args.data_path, args.max_text_len)
-        collate_fn = custom_datasets.text_collate_fn
+        collate_fn = custom_datasets.simple_text_collate_fn
     elif args.exp_name == 'image_text_itc':
         pass
     else:
@@ -215,6 +241,15 @@ def main(args):
 
     misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
 
+    # Set lora training
+    if args.exp_name == 'text_mlm':
+        custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
+    # Debug
+    print('Parameter status with lora training:')
+    for n, p in model_without_ddp.named_parameters():
+        print('{}: {}'.format(n, 'Not Frozen' if p.requires_grad else 'Frozen'))
+            
+
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
@@ -226,7 +261,7 @@ def main(args):
             log_writer=log_writer,
             args=args
         )
-        if args.output_dir and (epoch % 20 == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and (epoch % args.save_per_epochs == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)

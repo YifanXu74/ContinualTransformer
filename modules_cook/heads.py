@@ -37,6 +37,15 @@ class ITCHead(nn.Module):
         return x
 
 
+class MIMHead(nn.Module):
+    def __init__(self, config, hidden_dim):
+        super().__init__()
+        self.head = nn.Linear(hidden_dim, config.img_vocab_size)
+    
+    def forward(self, x):
+        return self.head(x)
+
+
 class MLMHead(nn.Module):
     def __init__(self, config, weight=None):
         super().__init__()
