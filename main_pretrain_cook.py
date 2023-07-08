@@ -162,7 +162,6 @@ def main(args):
     # ------------------------------------
     # dataset
     if args.exp_name == 'image_mim':
-        assert not args.self_regularization, 'MIM is the first pre-training step, no LoRA parameters are provided.'
         # # simple augmentation
         # transform_train = transforms.Compose([
         #         transforms.RandomResizedCrop(args.image_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
@@ -244,6 +243,9 @@ def main(args):
     # Set lora training
     if args.exp_name == 'text_mlm':
         custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
+    elif args.exp_name == 'image_mim':
+        assert not args.self_regularization, 'MIM is the first pre-training step, no LoRA parameters are provided.'
+        assert args.lora_rank == 0
     # Debug
     print('Parameter status with lora training:')
     for n, p in model_without_ddp.named_parameters():

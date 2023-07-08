@@ -79,7 +79,7 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 --log_dir output/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e2. \
+--reg_loss_weight 1e1 \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
