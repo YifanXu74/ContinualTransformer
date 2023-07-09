@@ -47,6 +47,7 @@ ln -s /userhome/models/BEIT/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo
 ln -s /userhome/models/DALLE/dall_e_tokenizer_weight checkpoints/
 ln -s /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth checkpoints/
 ```
+**!!! 集群上训练准备工作到这里就结束了 !!!**
 
 必要模型下载（仅用于其他客户端复现）：
 ```
@@ -62,7 +63,7 @@ wget -O checkpoints/dall_e_tokenizer_weight/encoder.pkl https://cdn.openai.com/d
 wget -O checkpoints/dall_e_tokenizer_weight/decoder.pkl https://cdn.openai.com/dall-e/decoder.pkl
 
 ```
-转换beit权重：
+转换beit权重（仅用于其他客户端复现）：
 ```
 python util/convert_beit_ckpt.py
 ```
