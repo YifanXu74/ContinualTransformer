@@ -6,9 +6,10 @@ cuda==11.7
 python==3.10.11
 torch==2.0.1
 torchvision==0.15.2
-timm==0.3.2
+timm==0.9.2
 ```
-应该其他环境也可以运行，但是timm必须为0.3.2。其中timm可能和高版本torch存在冲突，解决方法见：[this issue](https://github.com/huggingface/pytorch-image-models/issues/420#issuecomment-776459842)
+应该其他环境也可以运行
+<!-- 但是timm必须为0.3.2。其中timm可能和高版本torch存在冲突，解决方法见：[this issue](https://github.com/huggingface/pytorch-image-models/issues/420#issuecomment-776459842) -->
 
 
 **数据格式**
@@ -125,7 +126,8 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 4. 目前模型forward输入参数为 samples, mode，目前mode仅支持三种预训练任务: "text_mlm", "image_mim", "image_text_itc"，下游任务需要定义新的mode来传入
 5. 目前模型能支持的最大文本token数量为196，最大图像分辨率为224*224
 6. 下游任务finetune时`--lora_rank`一律设置成0，不要加`--self_regularization`
-7. 下游任务修改可以自行编写`main_finetune.py`和`engine_finetune.py`，可以参考`main_pretrain_cook.py`和`engine_pretrain.py`，可以仿照MAE的代码
+7. 下游任务修改可以自行编写`main_finetune.py`和`engine_finetune.py`，可以参考`main_pretrain_cook.py`和`engine_pretrain.py`，可以仿照MAE的代码 
+8. 目前dataset只写了训练数据加载，测试数据加载（如测试数据增广，尤其图像数据集）需要下游任务自行编写
 
 目前数据集加载输出格式：
 ```

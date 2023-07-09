@@ -24,7 +24,7 @@ import torchvision.datasets as datasets
 
 import timm
 
-assert timm.__version__ == "0.3.2"  # version check
+# assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
 
 import util.misc as misc
@@ -128,8 +128,6 @@ def get_args_parser():
     parser.add_argument('--self_regularization', action='store_true')
     parser.add_argument('--reg_loss_weight', default=1., type=float, 
                         help="weight of the self-regularization loss")
-    parser.add_argument('--save_merged_lora_model', action='store_true', 
-                        help='if set True, this script only serves to convert a checkpoint to a merged version (for downstreams).')
 
     # cook
     parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc'])
@@ -143,6 +141,14 @@ def get_args_parser():
     # image modeling
     parser.add_argument('--mim_probability', default=0.55, type=float)
     parser.add_argument('--img_vocab_size', default=8192, type=int)
+
+    # debug 
+    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--save_merged_lora_model', action='store_true', 
+                        help='if set True, this script only serves to convert a checkpoint to a merged version (for downstreams).')
+    parser.add_argument('--convert_ckpt', action='store_true', 
+                        help='if set True, this script only serves to convert a checkpoint of BEIT to suit the model.')
+    parser.add_argument('--converted_ckpt_save_path', default='', type=str, help='path to save the converted checkpoint if set convert_ckpt to True.')
     return parser
 
 
@@ -187,7 +193,7 @@ def main(args):
         num_tasks = misc.get_world_size()
         global_rank = misc.get_rank()
         sampler_train = torch.utils.data.DistributedSampler(
-            dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
+            dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True if not args.debug else False
         )
         print("Sampler_train = %s" % str(sampler_train))
     else:
@@ -213,6 +219,13 @@ def main(args):
     # define the model
     model = models_cook.ContinualModel(args)
 
+    if args.convert_ckpt:
+        assert args.resume
+        assert args.converted_ckpt_save_path != ''
+        model.convert_pretrained_weight(args.resume, args.converted_ckpt_save_path)
+        exit()
+
+
     model.to(device)
 
     model_without_ddp = model
@@ -234,8 +247,8 @@ def main(args):
         model_without_ddp = model.module
     
     # following timm: set wd as 0 for bias and norm layers
-    param_groups = optim_factory.add_weight_decay(model_without_ddp, args.weight_decay)
-    # param_groups = optim_factory.param_groups_weight_decay(model_without_ddp, args.weight_decay)
+    # param_groups = optim_factory.add_weight_decay(model_without_ddp, args.weight_decay)
+    param_groups = optim_factory.param_groups_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
     print(optimizer)
     loss_scaler = NativeScaler()
