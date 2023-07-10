@@ -30,6 +30,8 @@ ln -s /userhome/models/BERT/bert-base-uncased checkpoints/
 
 图像imagenet
 
+图文数据对json：[{'caption': xxx, 'filename': file_path}, {'caption': xxx, 'filename': file_path}, {'caption': xxx, 'filename': file_path}, ...],
+
 按以下方式存储：
 
 ```
@@ -47,7 +49,9 @@ data/
             ...
     
     CC3M/
-        cc3m_captions.json
+        cc3m_captions.json # 纯文本
+    CC12M/
+        12m_path.json # 图文对
 
 ```
 
@@ -94,6 +98,22 @@ checkpoints/
 
 ## Pre-training
 
+Image MIM pre-training:
+```
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+--exp_name image_mim \
+--model vlmo_base_patch16 \
+--data_path data/ILSVRC2012/train/ \
+--batch_size 128 \
+--output_dir outputs/image_mim/ \
+--log_dir outputs/image_mim/ \
+--lora_rank 0 \
+--save_per_epochs 20 \
+--epochs 800 \
+--warmup_epochs 40 \
+--blr 1.5e-4 --weight_decay 0.05 \
+```
+
 Text MLM pre-training:
 ```
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
@@ -113,18 +133,20 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
 
-Image MIM pre-training:
+Image-text Contrastive (ITC) pre-training:
 ```
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
---exp_name image_mim \
+--exp_name image_text_itc \
 --model vlmo_base_patch16 \
---data_path data/ILSVRC2012/train/ \
---batch_size 128 \
---output_dir outputs/image_mim/ \
---log_dir outputs/image_mim/ \
---lora_rank 0 \
+--data_path data/CC12M/12m_path.json \
+--batch_size 64 \
+--output_dir outputs/image_text_itc/ \
+--log_dir outputs/image_text_itc/ \
+--resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--lora_rank 64 \
+--reg_loss_weight 1e3 \
 --save_per_epochs 20 \
---epochs 800 \
+--epochs 100 \
 --warmup_epochs 40 \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
