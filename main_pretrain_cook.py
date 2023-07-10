@@ -265,12 +265,12 @@ def main(args):
         exit()
 
     # Set lora training
-    if args.exp_name == 'text_mlm':
-        assert args.lora_rank > 0
-        custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
-    elif args.exp_name == 'image_mim':
+    if args.exp_name == 'image_mim':
         assert not args.self_regularization, 'MIM is the first pre-training step, no LoRA parameters are provided.'
         assert args.lora_rank == 0
+    elif args.exp_name == 'text_mlm':
+        assert args.lora_rank > 0
+        custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
     elif args.exp_name == 'image_text_itc':
         assert args.lora_rank > 0
         custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
