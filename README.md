@@ -139,7 +139,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_text_itc \
 --model vlmo_base_patch16 \
 --data_path data/CC12M/12m_path.json \
---batch_size 64 \
+--batch_size 32 \
 --output_dir outputs/image_text_itc/ \
 --log_dir outputs/image_text_itc/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
