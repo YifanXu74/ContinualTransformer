@@ -73,19 +73,14 @@ class ITCScoreHead(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.aggregate = config.aggregate_itc
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
     
-    def forward(self, image_features, text_features):
+    def forward(self, image_features, text_features, logit_scale):
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        logit_scale = self.logit_scale
 
         world_size = misc.get_world_size()
         rank = misc.get_rank()
         if self.aggregate and (world_size > 1):
-            # world_size = dist.get_world_size()
-            # rank = dist.get_rank()
-
             # We gather tensors from all gpus to get more negatives to contrast with.
             gathered_image_features = [
             torch.zeros_like(image_features) for _ in range(world_size)

@@ -82,6 +82,7 @@ class ContinualModel(nn.Module):
         self.itc_head.apply(init_weights)
         self.itc_scores = heads.ITCScoreHead(config)
         self.itc_scores.apply(init_weights)
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
         self.i2t_acc = Accuracy()
         self.t2i_acc = Accuracy()
         
@@ -403,7 +404,7 @@ class ContinualModel(nn.Module):
             img_cls_features = self.itc_head(ret_img['cls_feats'], modality='image')
             txt_cls_features = self.itc_head(ret_txt['cls_feats'], modality='text')
 
-            itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features)
+            itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features, logit_scale=self.logit_scale)
 
             losses['itc_loss'] = (
                 F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
