@@ -336,13 +336,14 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
         print("missing_keys: {}".format(missing_keys))
         print("unexpected_keys: {}".format(unexpected_keys))
 
-        print("Resume checkpoint %s" % args.resume)
-        if 'optimizer' in checkpoint and 'epoch' in checkpoint and not (hasattr(args, 'eval') and args.eval):
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            args.start_epoch = checkpoint['epoch'] + 1
-            if 'scaler' in checkpoint:
-                loss_scaler.load_state_dict(checkpoint['scaler'])
-            print("With optim & sched!")
+        if not args.debug:
+            print("Resume checkpoint %s" % args.resume)
+            if 'optimizer' in checkpoint and 'epoch' in checkpoint and not (hasattr(args, 'eval') and args.eval):
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                args.start_epoch = checkpoint['epoch'] + 1
+                if 'scaler' in checkpoint:
+                    loss_scaler.load_state_dict(checkpoint['scaler'])
+                print("With optim & sched!")
 
 
 def all_reduce_mean(x):

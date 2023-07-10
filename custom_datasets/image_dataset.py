@@ -76,6 +76,41 @@ class DataAugmentationForContinualTransformer(object):
         return repr
 
 
+
+class SimpleDataAugmentationForContinualTransformer(object):
+    def __init__(self, args):
+        disable_imagenet_default_mean_and_std = args.disable_imagenet_default_mean_and_std
+        mean = IMAGENET_INCEPTION_MEAN if disable_imagenet_default_mean_and_std else IMAGENET_DEFAULT_MEAN
+        std = IMAGENET_INCEPTION_STD if disable_imagenet_default_mean_and_std else IMAGENET_DEFAULT_STD
+
+        self.common_transform = transforms.Compose([
+            transforms.ColorJitter(0.4, 0.4, 0.4),
+            transforms.RandomHorizontalFlip(p=0.5),
+            RandomResizedCropAndInterpolationWithTwoPic(
+                size=args.image_size,
+                interpolation=args.train_interpolation
+            ),
+        ])
+
+        self.patch_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=torch.tensor(mean),
+                std=torch.tensor(std))
+        ])
+
+    def __call__(self, image):
+        for_patches = self.common_transform(image)
+        return \
+            self.patch_transform(for_patches)
+
+    def __repr__(self):
+        repr = "(DataAugmentationForContinualTransformer,\n"
+        repr += "  common_transform = %s,\n" % str(self.common_transform)
+        repr += "  patch_transform = %s,\n" % str(self.patch_transform)
+        repr += ")"
+        return repr
+
 def build_image_pretraining_dataset(args):
     transform = DataAugmentationForContinualTransformer(args)
     print("Data Aug = %s" % str(transform))

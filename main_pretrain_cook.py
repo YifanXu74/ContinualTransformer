@@ -39,7 +39,10 @@ import custom_datasets
 
 import custom_loralib
 
-
+try:
+    local_rank = int(os.environ["LOCAL_RANK"])
+except:
+    pass
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ContinualTransformer pre-training', add_help=False)
@@ -85,8 +88,7 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
-                        help='dataset path')
+    parser.add_argument('--data_path', nargs='+', help='dataset path')
 
     parser.add_argument('--output_dir', default='./output_dir',
                         help='path where to save, empty for no saving')
@@ -115,8 +117,8 @@ def get_args_parser():
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')
-    # parser.add_argument('--local_rank', default=-1, type=int)
-    parser.add_argument('--local-rank', default=-1, type=int)
+    parser.add_argument('--local_rank', default=-1, type=int)
+    # parser.add_argument('--local-rank', default=-1, type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
@@ -142,6 +144,11 @@ def get_args_parser():
     parser.add_argument('--mim_probability', default=0.55, type=float)
     parser.add_argument('--img_vocab_size', default=8192, type=int)
 
+    # image_text_matching
+    parser.add_argument('--aggregate_itc', action='store_true',
+                        help='gather tensors from all gpus to get more negatives to contrast with.')
+    parser.set_defaults(aggregate_itc=True)
+
     # debug 
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--save_merged_lora_model', action='store_true', 
@@ -153,6 +160,9 @@ def get_args_parser():
 
 
 def main(args):
+    if len(args.data_path) == 1:
+        args.data_path = args.data_path[0]
+
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
@@ -170,21 +180,14 @@ def main(args):
     # ------------------------------------
     # dataset
     if args.exp_name == 'image_mim':
-        # # simple augmentation
-        # transform_train = transforms.Compose([
-        #         transforms.RandomResizedCrop(args.image_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-        #         transforms.RandomHorizontalFlip(),
-        #         transforms.ToTensor(),
-        #         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        # dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        # collate_fn = None
         dataset_train = custom_datasets.build_image_pretraining_dataset(args)
         collate_fn = custom_datasets.simple_image_collate_fn
     elif args.exp_name == 'text_mlm':
         dataset_train = custom_datasets.TextDataset(args.data_path, args.max_text_len)
         collate_fn = custom_datasets.simple_text_collate_fn
     elif args.exp_name == 'image_text_itc':
-        pass
+        dataset_train = custom_datasets.CaptionDataset(args.data_path, config=args)
+        collate_fn = custom_datasets.simple_caption_collate_fn
     else:
         raise NotImplementedError
     print(dataset_train)
@@ -263,10 +266,14 @@ def main(args):
 
     # Set lora training
     if args.exp_name == 'text_mlm':
+        assert args.lora_rank > 0
         custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
     elif args.exp_name == 'image_mim':
         assert not args.self_regularization, 'MIM is the first pre-training step, no LoRA parameters are provided.'
         assert args.lora_rank == 0
+    elif args.exp_name == 'image_text_itc':
+        assert args.lora_rank > 0
+        custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
     # Debug
     print('Parameter status with lora training:')
     for n, p in model_without_ddp.named_parameters():

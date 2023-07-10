@@ -47,6 +47,7 @@ class ContinualModel(nn.Module):
         trunc_normal_(self.mask_token, std=0.02)
         self.mim_score = heads.MIMHead(config, hidden_dim=self.transformer.num_features)
         self.mim_score.apply(init_weights)
+        self.mim_accuracy = Accuracy()
 
 
 
@@ -75,6 +76,14 @@ class ContinualModel(nn.Module):
         self.mlm_score = heads.MLMHead(bert_config)
         self.mlm_score.apply(init_weights)
         self.mlm_accuracy = Accuracy()
+        
+        # image-text contrastive modeling
+        self.itc_head = heads.ITCHead(self.transformer.num_features)
+        self.itc_head.apply(init_weights)
+        self.itc_scores = heads.ITCScoreHead(config)
+        self.itc_scores.apply(init_weights)
+        self.i2t_acc = Accuracy()
+        self.t2i_acc = Accuracy()
         
         # self.load_pretrained_weight()
 
@@ -382,9 +391,31 @@ class ContinualModel(nn.Module):
                 mim_labels.view(-1),
                 ignore_index=-100,
             )
-            return losses
+            acc = self.mim_accuracy(mim_logits, mim_labels)
+            return losses, acc
         elif mode == 'image_text_itc':
-            pass
+            assert self.training
+            losses ={}
+
+            ret_img = self.forward_image(samples, mask_image=False)
+            ret_txt = self.forward_text(samples, device=samples['images'].device, mask_text=False)       
+
+            img_cls_features = self.itc_head(ret_img['cls_feats'], modality='image')
+            txt_cls_features = self.itc_head(ret_txt['cls_feats'], modality='text')
+
+            itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features)
+
+            losses['itc_loss'] = (
+                F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
+                + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
+            ) / 2
+            acc = {
+                'i2t_acc': self.i2t_acc(itc_logits['logits_per_image'], itc_labels),
+                't2i_acc': self.t2i_acc(itc_logits['logits_per_text'], itc_labels)
+            }
+
+            return losses, acc
+
         elif mode == 'inference':
             pass
         else:

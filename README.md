@@ -8,8 +8,20 @@ torch==2.0.1
 torchvision==0.15.2
 timm==0.9.2
 ```
-应该其他环境也可以运行
-<!-- 但是timm必须为0.3.2。其中timm可能和高版本torch存在冲突，解决方法见：[this issue](https://github.com/huggingface/pytorch-image-models/issues/420#issuecomment-776459842) -->
+集群上按照以下步骤配置：
+```
+从itpn环境复现ContinualTransformer
+ 
+1. 修改models_cook.py line 73，把tokenizer加载路径换成本地，即：
+self.tokenizer = get_pretrained_tokenizer('checkpoints/bert-base-uncased')
+并执行下面命令：
+cd $project_path
+mkdir checkpoints/
+ln -s /userhome/models/BERT/bert-base-uncased checkpoints/
+
+2. 安装环境: bash /userhome/yfxu/ContinualTransformer/init_from_itpn.sh 
+
+```
 
 
 **数据格式**
@@ -46,6 +58,7 @@ mkdir checkpoints
 ln -s /userhome/models/BEIT/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth checkpoints/
 ln -s /userhome/models/DALLE/dall_e_tokenizer_weight checkpoints/
 ln -s /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth checkpoints/
+ln -s /userhome/models/BERT/bert-base-uncased checkpoints/
 ```
 **!!! 集群上训练准备工作到这里就结束了 !!!**
 
@@ -83,7 +96,7 @@ checkpoints/
 
 Text MLM pre-training:
 ```
-python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name text_mlm \
 --model vlmo_base_patch16 \
 --data_path data/CC3M/cc3m_captions.json \
@@ -92,7 +105,7 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 --log_dir outputs/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e1 \
+--reg_loss_weight 1e3 \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
@@ -102,7 +115,7 @@ python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_c
 
 Image MIM pre-training:
 ```
-python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_mim \
 --model vlmo_base_patch16 \
 --data_path data/ILSVRC2012/train/ \

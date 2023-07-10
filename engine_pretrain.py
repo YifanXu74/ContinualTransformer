@@ -42,17 +42,29 @@ def train_one_epoch(model: torch.nn.Module,
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
+        # data pre-process
         if args.exp_name == 'text_mlm':
             samples['target_device']=device
-            with torch.cuda.amp.autocast():
-                losses, acc = model(samples, args.exp_name)
-                loss = sum(losses.values())
+        elif args.exp_name == 'image_mim':
+            samples = {k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v for k,v in samples.items()}
+        elif args.exp_name == 'image_text_itc':
+            samples = {k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v for k,v in samples.items()}
+        else:
+            raise NotImplementedError
+        
+        # forward samples
+        with torch.cuda.amp.autocast():
+            losses, acc = model(samples, args.exp_name)
+            loss = sum(losses.values())
+        
+        # results post-process
+        if args.exp_name == 'text_mlm':
             metric_logger.update(mlm_acc=acc.item())
         elif args.exp_name == 'image_mim':
-            samples = {k: v.to(device, non_blocking=True) for k,v in samples.items()}
-            with torch.cuda.amp.autocast():
-                losses = model(samples, args.exp_name)
-                loss = sum(losses.values())
+            metric_logger.update(mim_acc=acc.item())
+        elif args.exp_name == 'image_text_itc':
+            metric_logger.update(i2t_acc=acc['i2t_acc'].item())
+            metric_logger.update(t2i_acc=acc['t2i_acc'].item())
         else:
             raise NotImplementedError
 
@@ -64,8 +76,9 @@ def train_one_epoch(model: torch.nn.Module,
             sys.exit(1)
 
         loss /= accum_iter
-        loss_scaler(loss, optimizer, parameters=model.parameters(),
-                    update_grad=(data_iter_step + 1) % accum_iter == 0)
+        if not args.debug:
+            loss_scaler(loss, optimizer, parameters=model.parameters(),
+                        update_grad=(data_iter_step + 1) % accum_iter == 0)
         if (data_iter_step + 1) % accum_iter == 0:
             optimizer.zero_grad()
 
