@@ -282,6 +282,76 @@ class ContinualModel(nn.Module):
         text_imag_relative_position_index = torch.cat((text_row_relative_position_index, imag_row_relative_position_index), 0)
         self.text_imag_relative_position_index = text_imag_relative_position_index
 
+    def forward_co_modality(self, samples, mask_text=False, mask_image=False):
+        assert not self.self_regularization
+
+        img = samples['images']
+        device = img.device
+        txt = samples['raw_text']
+        txt = self.tokenizer(
+            txt,
+            padding="longest",
+            truncation=True,
+            max_length=self.config.max_text_len,
+            return_special_tokens_mask=True,
+        )
+
+        # image embedding
+        if mask_image:
+            img_vae = samples['images_for_vae']
+            img_labels, bool_mask = self.mim_processor(img_vae)
+            img_labels = torch.cat([img_labels.new_full((img_labels.shape[0],1), -100), img_labels], dim=1) # add label for CLS token
+            image_embeds, image_masks = self.transformer.visual_embed(img, bool_mask=bool_mask, mask_token=self.mask_token)
+        else:
+            image_embeds, image_masks = self.transformer.visual_embed(img)
+            img_labels = None       
+        image_masks = image_masks.long().to(device=img.get_device())
+        image_embeds = image_embeds + self.token_type_embeddings(
+                torch.full_like(image_masks, 1)
+            )
+        
+        # text embedding
+        if mask_text:
+            txt_inputs, txt_labels = self.mlm_processor(txt, device).values()
+        else:
+            txt_inputs = torch.tensor(samples['input_ids'], device=device)
+            txt_labels = None
+        text_masks = torch.tensor(txt['attention_mask'], device=device)
+        text_embeds = self.text_embeddings(txt_inputs)
+        text_embeds = text_embeds + self.token_type_embeddings(torch.zeros_like(text_masks))
+        
+        # co embedding
+        co_embeds = torch.cat([text_embeds, image_embeds], dim=1)
+        co_masks = torch.cat([text_masks, image_masks], dim=1)
+
+        x = co_embeds
+        relative_position_bias_list = self.get_rel_pos_bias(self.text_imag_relative_position_index)
+
+        for i, blk in enumerate(self.transformer.blocks):
+            x = blk(x, mask=co_masks, relative_position_bias=relative_position_bias_list[i])
+
+        x = self.transformer.norm(x)
+        text_feats, image_feats = (
+            x[:, : text_embeds.shape[1]],
+            x[:, text_embeds.shape[1] :],
+        )
+
+        cls_feats = self.pooler(x)
+
+        ret = {
+            "co_cls_feats": cls_feats,
+            "img_feats": image_feats,
+            "img_cls_feats": image_feats[:, 0],
+            "img_labels": img_labels,
+            "img_masks": image_masks,
+            "txt_feats": text_feats,
+            "txt_cls_feats": text_feats[:, 0],
+            "txt_labels": txt_labels,
+            "txt_masks": text_masks,
+            "reg_loss":  None,
+        } 
+        return ret
+
     def forward_text(self, samples, device=None, mask_text=False):
         assert device is not None
         samples = samples['raw_text']

@@ -125,7 +125,7 @@ def get_args_parser():
     
     # lora training
     parser.add_argument('--lora_rank', default=0, type=int)
-    parser.add_argument('--exception', default=['norm.weight', 'norm.bias'], type=list,
+    parser.add_argument('--exception', default=['norm.weight', 'norm.bias', 'cls_token', 'pos_embed'], type=list,
                          help='Non-lora parameters kept trainng with lora')
     parser.add_argument('--self_regularization', action='store_true')
     parser.add_argument('--reg_loss_weight', default=1., type=float, 
