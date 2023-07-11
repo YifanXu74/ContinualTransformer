@@ -71,19 +71,37 @@ cd $PROJECT_DIR
 # --blr 1.5e-4 --weight_decay 0.05 \
 # &> logs/test_cc3m_regloss_1e1.txt
 
+# test opentext
+# python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+# --exp_name text_mlm \
+# --model vlmo_base_patch16 \
+# --data_path /mnt/hdd/Datasets/increment_json/openwebtext_captions_a10000.json \
+# --batch_size 64 \
+# --output_dir outputs/debug/ \
+# --log_dir outputs/debug/ \
+# --resume outputs/text_mlm_regloss_1e3/checkpoint-80.pth \
+# --lora_rank 64 \
+# --reg_loss_weight 1e3 \
+# --self_regularization \
+# --save_per_epochs 20 \
+# --epochs 100 \
+# --warmup_epochs 40 \
+# --blr 1.5e-4 --weight_decay 0.05 \
+# --debug \
+
 python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name text_mlm \
 --model vlmo_base_patch16 \
 --data_path data/CC3M/cc3m_captions.json \
 --batch_size 384 \
---output_dir outputs/text_mlm_regloss_1e3/ \
---log_dir outputs/text_mlm_regloss_1e3/ \
+--output_dir outputs/text_mlm_regloss_1e4/ \
+--log_dir outputs/text_mlm_regloss_1e4/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e3 \
+--reg_loss_weight 1e4 \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
 --warmup_epochs 40 \
 --blr 1.5e-4 --weight_decay 0.05 \
-&> logs/test_cc3m_regloss_1e3.txt
+&> logs/test_cc3m_regloss_1e4.txt
