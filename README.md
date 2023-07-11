@@ -151,7 +151,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
 
-Conpound pre-training (MIM + MLM + ITC):
+Compound pre-training (MIM + MLM + ITC):
 ```
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name compound_pretrain \
