@@ -88,7 +88,9 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', nargs='+', help='dataset path')
+    parser.add_argument('--data_path', default='', type=str,
+                        help='dataset path')
+    parser.add_argument('--data_file_path', nargs='+', help='dataset path')
 
     parser.add_argument('--output_dir', default='./output_dir',
                         help='path where to save, empty for no saving')
@@ -132,7 +134,7 @@ def get_args_parser():
                         help="weight of the self-regularization loss")
 
     # cook
-    parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc'])
+    parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc', 'compound_pretrain'])
 
     # languge modeling 
     parser.add_argument('--max_text_len', default=196, type=int)
@@ -148,6 +150,9 @@ def get_args_parser():
     parser.add_argument('--aggregate_itc', action='store_true',
                         help='gather tensors from all gpus to get more negatives to contrast with.')
     parser.set_defaults(aggregate_itc=True)
+    parser.add_argument('--force_vae', action='store_true',
+                        help='Force to enable vae when load images. This is used when conducting compound_pretraining (MIM + MLM + ITC).')
+
 
     # debug 
     parser.add_argument('--debug', action='store_true')
@@ -160,8 +165,8 @@ def get_args_parser():
 
 
 def main(args):
-    if len(args.data_path) == 1:
-        args.data_path = args.data_path[0]
+    if len(args.data_file_path) == 1:
+        args.data_file_path = args.data_file_path[0]
 
     misc.init_distributed_mode(args)
 
@@ -183,10 +188,10 @@ def main(args):
         dataset_train = custom_datasets.build_image_pretraining_dataset(args)
         collate_fn = custom_datasets.simple_image_collate_fn
     elif args.exp_name == 'text_mlm':
-        dataset_train = custom_datasets.TextDataset(args.data_path, args.max_text_len)
+        dataset_train = custom_datasets.TextDataset(args.data_file_path, args.max_text_len)
         collate_fn = custom_datasets.simple_text_collate_fn
-    elif args.exp_name == 'image_text_itc':
-        dataset_train = custom_datasets.CaptionDataset(args.data_path, config=args)
+    elif args.exp_name == 'image_text_itc' or args.exp_name == 'compound_pretrain':
+        dataset_train = custom_datasets.CaptionDataset(args.data_file_path, config=args, data_path=args.data_path)
         collate_fn = custom_datasets.simple_caption_collate_fn
     else:
         raise NotImplementedError
@@ -274,6 +279,11 @@ def main(args):
     elif args.exp_name == 'image_text_itc':
         assert args.lora_rank > 0
         custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
+    elif args.exp_name == 'compound_pretrain':
+        assert args.lora_rank > 0
+        assert args.force_vae
+        custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
+
     # Debug
     print('Parameter status with lora training:')
     for n, p in model_without_ddp.named_parameters():

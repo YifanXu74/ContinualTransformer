@@ -434,35 +434,37 @@ class ContinualModel(nn.Module):
         if mode == 'text_mlm':
             assert self.training
             losses = {}
+            acc = {}
 
             device = samples['target_device']
             ret = self.forward_text(samples, device=device, mask_text=True)
             mlm_logits = self.mlm_score(ret["feats"])
             mlm_labels = ret["labels"]
-            losses['mlm_loss'] = F.cross_entropy(
+            losses['loss_mlm'] = F.cross_entropy(
                 mlm_logits.view(-1, self.config.vocab_size),
                 mlm_labels.view(-1),
                 ignore_index=-100,
             )
-            acc =self.mlm_accuracy(mlm_logits, mlm_labels)     
+            acc['acc_mlm'] = self.mlm_accuracy(mlm_logits, mlm_labels).item()   
 
             if self.self_regularization:
                 losses['reg_loss'] = ret["reg_loss"] * self.config.reg_loss_weight
-            
+
             return losses, acc
         elif mode == 'image_mim':
             assert self.training
             losses = {}
+            acc = {}
 
             ret = self.forward_image(samples, mask_image=True)
             mim_logits = self.mim_score(ret["feats"])
             mim_labels = ret["labels"]
-            losses['mim_loss'] = F.cross_entropy(
+            losses['loss_mim'] = F.cross_entropy(
                 mim_logits.view(-1, self.config.img_vocab_size),
                 mim_labels.view(-1),
                 ignore_index=-100,
             )
-            acc = self.mim_accuracy(mim_logits, mim_labels)
+            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels).item()
             return losses, acc
         elif mode == 'image_text_itc':
             assert self.training
@@ -476,17 +478,59 @@ class ContinualModel(nn.Module):
 
             itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features, logit_scale=self.logit_scale)
 
-            losses['itc_loss'] = (
+            losses['loss_itc'] = (
                 F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
                 + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
             ) / 2
             acc = {
-                'i2t_acc': self.i2t_acc(itc_logits['logits_per_image'], itc_labels),
-                't2i_acc': self.t2i_acc(itc_logits['logits_per_text'], itc_labels)
+                'acc_i2t': self.i2t_acc(itc_logits['logits_per_image'], itc_labels).item(),
+                'acc_t2i': self.t2i_acc(itc_logits['logits_per_text'], itc_labels).item()
             }
 
             return losses, acc
+        
+        elif mode == 'compound_pretrain':
+            # MIM + MLM + ITC
+            assert self.training
+            losses ={}
+            acc = {}
 
+            ret_img = self.forward_image(samples, mask_image=True)
+            ret_txt = self.forward_text(samples, device=samples['images'].device, mask_text=True)
+
+            # MIM
+            mim_logits = self.mim_score(ret_img["feats"])
+            mim_labels = ret_img["labels"]
+            losses['loss_mim'] = F.cross_entropy(
+                mim_logits.view(-1, self.config.img_vocab_size),
+                mim_labels.view(-1),
+                ignore_index=-100,
+            )
+            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels).item()
+
+            # MLM
+            mlm_logits = self.mlm_score(ret_txt["feats"])
+            mlm_labels = ret_txt["labels"]
+            losses['loss_mlm'] = F.cross_entropy(
+                mlm_logits.view(-1, self.config.vocab_size),
+                mlm_labels.view(-1),
+                ignore_index=-100,
+            )
+            acc['acc_mlm'] =self.mlm_accuracy(mlm_logits, mlm_labels).item()
+
+            # ITC
+            img_cls_features = self.itc_head(ret_img['cls_feats'], modality='image')
+            txt_cls_features = self.itc_head(ret_txt['cls_feats'], modality='text')
+            itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features, logit_scale=self.logit_scale)
+            losses['loss_itc'] = (
+                F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
+                + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
+            ) / 2
+            acc['acc_i2t'] = self.i2t_acc(itc_logits['logits_per_image'], itc_labels).item()
+            acc['acc_t2i'] = self.t2i_acc(itc_logits['logits_per_text'], itc_labels).item()
+
+            return losses, acc
+        
         elif mode == 'inference':
             pass
         else:

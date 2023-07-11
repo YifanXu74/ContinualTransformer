@@ -43,14 +43,8 @@ def train_one_epoch(model: torch.nn.Module,
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
         # data pre-process
-        if args.exp_name == 'text_mlm':
-            samples['target_device']=device
-        elif args.exp_name == 'image_mim':
-            samples = {k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v for k,v in samples.items()}
-        elif args.exp_name == 'image_text_itc':
-            samples = {k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v for k,v in samples.items()}
-        else:
-            raise NotImplementedError
+        samples['target_device']=device
+        samples = {k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v for k,v in samples.items()}
         
         # forward samples
         with torch.cuda.amp.autocast():
@@ -58,15 +52,7 @@ def train_one_epoch(model: torch.nn.Module,
             loss = sum(losses.values())
         
         # results post-process
-        if args.exp_name == 'text_mlm':
-            metric_logger.update(mlm_acc=acc.item())
-        elif args.exp_name == 'image_mim':
-            metric_logger.update(mim_acc=acc.item())
-        elif args.exp_name == 'image_text_itc':
-            metric_logger.update(i2t_acc=acc['i2t_acc'].item())
-            metric_logger.update(t2i_acc=acc['t2i_acc'].item())
-        else:
-            raise NotImplementedError
+        metric_logger.update(**acc)
 
 
         loss_value = loss.item()
