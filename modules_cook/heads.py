@@ -75,8 +75,9 @@ class ITCScoreHead(nn.Module):
         self.aggregate = config.aggregate_itc
     
     def forward(self, image_features, text_features, logit_scale):
-        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True, p=2)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True, p=2)
+        logit_scale = logit_scale.exp().mean()
 
         world_size = misc.get_world_size()
         rank = misc.get_rank()

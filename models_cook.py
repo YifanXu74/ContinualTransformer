@@ -482,8 +482,8 @@ class ContinualModel(nn.Module):
             itc_logits, itc_labels = self.itc_scores(img_cls_features, txt_cls_features, logit_scale=self.logit_scale)
 
             losses['loss_itc'] = (
-                F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
-                + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
+                F.cross_entropy(itc_logits['logits_per_image'], itc_labels)
+                + F.cross_entropy(itc_logits['logits_per_text'], itc_labels)
             ) / 2
             acc = {
                 'acc_i2t': self.i2t_acc(itc_logits['logits_per_image'], itc_labels),
