@@ -119,7 +119,7 @@ Text MLM pre-training:
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name text_mlm \
 --model vlmo_base_patch16 \
---data_path data/CC3M/cc3m_captions.json \
+--data_file_path data/CC3M/cc3m_captions.json \
 --batch_size 384 \
 --output_dir outputs/text_mlm/ \
 --log_dir outputs/text_mlm/ \
@@ -134,11 +134,12 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 ```
 
 Image-text Contrastive (ITC) pre-training:
+如果`--data_file_path`文件中标注的样本路径为相对路径，还需要指定数据集的路径`--data_path`。
 ```
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_text_itc \
 --model vlmo_base_patch16 \
---data_path data/CC12M/12m_path.json \
+--data_file_path data/CC12M/12m_path.json \
 --batch_size 64 \
 --output_dir outputs/image_text_itc/ \
 --log_dir outputs/image_text_itc/ \
@@ -156,7 +157,7 @@ Compound pre-training (MIM + MLM + ITC):
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name compound_pretrain \
 --model vlmo_base_patch16 \
---data_path data/CC12M/12m_path.json \
+--data_file_path data/CC12M/12m_path.json \
 --batch_size 64 \
 --output_dir outputs/compound_pretrain/ \
 --log_dir outputs/compound_pretrain/ \
@@ -201,6 +202,12 @@ custom_datasets/image_dataset.py 图像数据集:
 CC3M文本MLM预训练模型:
 ```
 /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e1-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e2-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e3-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e3-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e4-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e4-merged.pth
 ```
 
 文本下游任务可加载上面这个模型，并指定下面参数:
