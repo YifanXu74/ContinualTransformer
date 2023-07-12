@@ -72,7 +72,7 @@ class ContinualModel(nn.Module):
         self.pooler.apply(init_weights)
 
         # language modeling
-        self.tokenizer = get_pretrained_tokenizer('bert-base-uncased')
+        self.tokenizer = get_pretrained_tokenizer('checkpoints/bert-base-uncased') # debug
         self.mlm_processor = ProcessorForWholeWordMask(self.tokenizer, mlm_probability=config.mlm_probability)
         self.mlm_score = heads.MLMHead(bert_config)
         self.mlm_score.apply(init_weights)

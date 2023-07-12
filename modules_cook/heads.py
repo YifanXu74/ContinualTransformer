@@ -49,10 +49,14 @@ class ITCHead(nn.Module):
 class MIMHead(nn.Module):
     def __init__(self, config, hidden_dim):
         super().__init__()
-        self.head = nn.Linear(hidden_dim, config.img_vocab_size)
+        self.transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.nn.GELU(), nn.LayerNorm(hidden_dim, eps=1e-6))
+        self.decoder = nn.Linear(hidden_dim, config.img_vocab_size, bias=False)
+        self.bias = nn.Parameter(torch.zeros(config.img_vocab_size))
     
     def forward(self, x):
-        return self.head(x)
+        x = self.transform(x)
+        x = self.decoder(x) + self.bias
+        return x
 
 
 class MLMHead(nn.Module):
