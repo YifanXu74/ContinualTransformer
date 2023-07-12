@@ -13,3 +13,4 @@ submitit_finetune.py
 submitit_linprobe.py
 submitit_pretrain.py
 models_vit.py
+pretrained_models/

@@ -160,13 +160,13 @@ def get_args_parser():
                         help='if set True, this script only serves to convert a checkpoint to a merged version (for downstreams).')
     parser.add_argument('--convert_ckpt', action='store_true', 
                         help='if set True, this script only serves to convert a checkpoint of BEIT to suit the model.')
-    parser.add_argument('--converted_ckpt_save_path', default='', type=str, help='path to save the converted checkpoint if set convert_ckpt to True.')
     return parser
 
 
 def main(args):
-    if len(args.data_file_path) == 1:
-        args.data_file_path = args.data_file_path[0]
+    if args.data_file_path is not None:
+        if len(args.data_file_path) == 1:
+            args.data_file_path = args.data_file_path[0]
 
     misc.init_distributed_mode(args)
 
@@ -184,43 +184,44 @@ def main(args):
 
     # ------------------------------------
     # dataset
-    if args.exp_name == 'image_mim':
-        dataset_train = custom_datasets.build_image_pretraining_dataset(args)
-        collate_fn = custom_datasets.simple_image_collate_fn
-    elif args.exp_name == 'text_mlm':
-        dataset_train = custom_datasets.TextDataset(args.data_file_path, args.max_text_len)
-        collate_fn = custom_datasets.simple_text_collate_fn
-    elif args.exp_name == 'image_text_itc' or args.exp_name == 'compound_pretrain':
-        dataset_train = custom_datasets.CaptionDataset(args.data_file_path, config=args, data_path=args.data_path)
-        collate_fn = custom_datasets.simple_caption_collate_fn
-    else:
-        raise NotImplementedError
-    print(dataset_train)
+    if not (args.save_merged_lora_model or args.convert_ckpt):
+        if args.exp_name == 'image_mim':
+            dataset_train = custom_datasets.build_image_pretraining_dataset(args)
+            collate_fn = custom_datasets.simple_image_collate_fn
+        elif args.exp_name == 'text_mlm':
+            dataset_train = custom_datasets.TextDataset(args.data_file_path, args.max_text_len)
+            collate_fn = custom_datasets.simple_text_collate_fn
+        elif args.exp_name == 'image_text_itc' or args.exp_name == 'compound_pretrain':
+            dataset_train = custom_datasets.CaptionDataset(args.data_file_path, config=args, data_path=args.data_path)
+            collate_fn = custom_datasets.simple_caption_collate_fn
+        else:
+            raise NotImplementedError
+        print(dataset_train)
 
-    if True:  # args.distributed:
-        num_tasks = misc.get_world_size()
-        global_rank = misc.get_rank()
-        sampler_train = torch.utils.data.DistributedSampler(
-            dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True if not args.debug else False
+        if True:  # args.distributed:
+            num_tasks = misc.get_world_size()
+            global_rank = misc.get_rank()
+            sampler_train = torch.utils.data.DistributedSampler(
+                dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True if not args.debug else False
+            )
+            print("Sampler_train = %s" % str(sampler_train))
+        else:
+            sampler_train = torch.utils.data.RandomSampler(dataset_train)
+
+        if global_rank == 0 and args.log_dir is not None:
+            os.makedirs(args.log_dir, exist_ok=True)
+            log_writer = SummaryWriter(log_dir=args.log_dir)
+        else:
+            log_writer = None
+
+        data_loader_train = torch.utils.data.DataLoader(
+            dataset_train, sampler=sampler_train,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            pin_memory=args.pin_mem,
+            drop_last=True,
+            collate_fn = collate_fn,
         )
-        print("Sampler_train = %s" % str(sampler_train))
-    else:
-        sampler_train = torch.utils.data.RandomSampler(dataset_train)
-
-    if global_rank == 0 and args.log_dir is not None:
-        os.makedirs(args.log_dir, exist_ok=True)
-        log_writer = SummaryWriter(log_dir=args.log_dir)
-    else:
-        log_writer = None
-
-    data_loader_train = torch.utils.data.DataLoader(
-        dataset_train, sampler=sampler_train,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        pin_memory=args.pin_mem,
-        drop_last=True,
-        collate_fn = collate_fn,
-    )
 
 
     
@@ -228,9 +229,8 @@ def main(args):
     model = models_cook.ContinualModel(args)
 
     if args.convert_ckpt:
-        assert args.resume
-        assert args.converted_ckpt_save_path != ''
-        model.convert_pretrained_weight(args.resume, args.converted_ckpt_save_path)
+        assert args.resume != ''
+        model.convert_pretrained_weight(args.resume, args.output_dir)
         exit()
 
 

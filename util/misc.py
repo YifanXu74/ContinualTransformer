@@ -23,6 +23,7 @@ from torch import nn
 
 from scipy import interpolate
 import numpy as np
+import random
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -297,11 +298,12 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
 
 def save_merged_model(args, model_without_ddp):
     output_dir = Path(args.output_dir)
-    checkpoint_path = output_dir / ('checkpoint-merged.pth')
+    checkpoint_path = output_dir / ('checkpoint-merged-{}.pth'.format(str(random.randint(0, 99999)).zfill(5)))
     model_without_ddp.eval() # set eval to enable lora merging
     to_save = {
                 'model': model_without_ddp.state_dict(),
             }
+    print('save merged model to {}'.format(checkpoint_path))
     save_on_master(to_save, checkpoint_path)
 
 def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler):
@@ -336,7 +338,7 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
         print("missing_keys: {}".format(missing_keys))
         print("unexpected_keys: {}".format(unexpected_keys))
 
-        if not args.debug:
+        if not (args.debug or args.save_merged_lora_model):
             print("Resume checkpoint %s" % args.resume)
             if 'optimizer' in checkpoint and 'epoch' in checkpoint and not (hasattr(args, 'eval') and args.eval):
                 optimizer.load_state_dict(checkpoint['optimizer'])

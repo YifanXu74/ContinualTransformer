@@ -16,6 +16,7 @@ import modules_cook.backbone_modules
 from util.my_metrics import Accuracy, VQAScore, Scalar
 from timm.models.layers import trunc_normal_
 from scipy import interpolate
+import random
 
 
 class ContinualModel(nn.Module):
@@ -89,6 +90,7 @@ class ContinualModel(nn.Module):
         # self.load_pretrained_weight()
 
     def convert_pretrained_weight(self, ckpt_path, output_path):
+        save_path = output_path / ('checkpoint-converted-{}.pth'.format(str(random.randint(0, 99999)).zfill(5)))
         ckpt = torch.load(ckpt_path, map_location='cpu')
         state_dict = ckpt['model']
 
@@ -209,7 +211,8 @@ class ContinualModel(nn.Module):
                 state_dict["relative_position_bias_table"] = new_rel_pos_bias
 
         new_ckpt = {'model': state_dict}
-        torch.save(new_ckpt, output_path)
+        print('save converted model to {}'.format(save_path))
+        torch.save(new_ckpt, save_path)
 
     def get_rel_pos_bias(self, relative_position_index):
         if self.relative_position_embed:
