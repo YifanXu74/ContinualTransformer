@@ -110,7 +110,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --lora_rank 0 \
 --save_per_epochs 20 \
 --epochs 800 \
---warmup_epochs 40 \
+--warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
 
@@ -125,11 +125,11 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --log_dir outputs/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e3 \
+--reg_loss_weight 1e4 \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
---warmup_epochs 40 \
+--warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
 
@@ -145,10 +145,9 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --log_dir outputs/image_text_itc/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e3 \
 --save_per_epochs 20 \
 --epochs 100 \
---warmup_epochs 40 \
+--warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
 
@@ -165,7 +164,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --lora_rank 64 \
 --save_per_epochs 20 \
 --epochs 100 \
---warmup_epochs 40 \
+--warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
 --force_vae \
 ```

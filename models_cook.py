@@ -448,7 +448,7 @@ class ContinualModel(nn.Module):
                 mlm_labels.view(-1),
                 ignore_index=-100,
             )
-            acc['acc_mlm'] = self.mlm_accuracy(mlm_logits, mlm_labels).item()   
+            acc['acc_mlm'] = self.mlm_accuracy(mlm_logits, mlm_labels)   
 
             if self.self_regularization:
                 losses['reg_loss'] = ret["reg_loss"] * self.config.reg_loss_weight
@@ -467,7 +467,7 @@ class ContinualModel(nn.Module):
                 mim_labels.view(-1),
                 ignore_index=-100,
             )
-            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels).item()
+            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels)
             return losses, acc
         elif mode == 'image_text_itc':
             assert self.training
@@ -486,8 +486,8 @@ class ContinualModel(nn.Module):
                 + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
             ) / 2
             acc = {
-                'acc_i2t': self.i2t_acc(itc_logits['logits_per_image'], itc_labels).item(),
-                'acc_t2i': self.t2i_acc(itc_logits['logits_per_text'], itc_labels).item()
+                'acc_i2t': self.i2t_acc(itc_logits['logits_per_image'], itc_labels),
+                'acc_t2i': self.t2i_acc(itc_logits['logits_per_text'], itc_labels),
             }
 
             return losses, acc
@@ -509,7 +509,7 @@ class ContinualModel(nn.Module):
                 mim_labels.view(-1),
                 ignore_index=-100,
             )
-            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels).item()
+            acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels)
 
             # MLM
             mlm_logits = self.mlm_score(ret_txt["feats"])
@@ -519,7 +519,7 @@ class ContinualModel(nn.Module):
                 mlm_labels.view(-1),
                 ignore_index=-100,
             )
-            acc['acc_mlm'] =self.mlm_accuracy(mlm_logits, mlm_labels).item()
+            acc['acc_mlm'] =self.mlm_accuracy(mlm_logits, mlm_labels)
 
             # ITC
             img_cls_features = self.itc_head(ret_img['cls_feats'], modality='image')
@@ -529,8 +529,8 @@ class ContinualModel(nn.Module):
                 F.cross_entropy(itc_logits['logits_per_image'].float(), itc_labels)
                 + F.cross_entropy(itc_logits['logits_per_text'].float(), itc_labels)
             ) / 2
-            acc['acc_i2t'] = self.i2t_acc(itc_logits['logits_per_image'], itc_labels).item()
-            acc['acc_t2i'] = self.t2i_acc(itc_logits['logits_per_text'], itc_labels).item()
+            acc['acc_i2t'] = self.i2t_acc(itc_logits['logits_per_image'], itc_labels)
+            acc['acc_t2i'] = self.t2i_acc(itc_logits['logits_per_text'], itc_labels)
 
             return losses, acc
         

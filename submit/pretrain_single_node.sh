@@ -89,19 +89,34 @@ cd $PROJECT_DIR
 # --blr 1.5e-4 --weight_decay 0.05 \
 # --debug \
 
-python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
---exp_name text_mlm \
+torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py \
+--exp_name image_text_itc \
 --model vlmo_base_patch16 \
---data_file_path data/CC3M/cc3m_captions.json \
---batch_size 384 \
---output_dir outputs/text_mlm_regloss_1e8/ \
---log_dir outputs/text_mlm_regloss_1e8/ \
+--data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
+--data_path /mnt/hdd/Datasets/coco2017/ \
+--batch_size 1 \
+--output_dir outputs/debug/ \
+--log_dir outputs/debug/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e8 \
---self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
---warmup_epochs 40 \
---blr 1.5e-4 --weight_decay 0.05 \
-&> logs/test_cc3m_regloss_1e8.txt
+--warmup_epochs 5 \
+--blr 1.5e-4 --weight_decay 0.05
+
+# python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+# --exp_name text_mlm \
+# --model vlmo_base_patch16 \
+# --data_file_path data/CC3M/cc3m_captions.json \
+# --batch_size 384 \
+# --output_dir outputs/text_mlm_regloss_1e8/ \
+# --log_dir outputs/text_mlm_regloss_1e8/ \
+# --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+# --lora_rank 64 \
+# --reg_loss_weight 1e8 \
+# --self_regularization \
+# --save_per_epochs 20 \
+# --epochs 100 \
+# --warmup_epochs 40 \
+# --blr 1.5e-4 --weight_decay 0.05 \
+# &> logs/test_cc3m_regloss_1e8.txt

@@ -56,6 +56,8 @@ def get_args_parser():
     # Model parameters
     parser.add_argument('--model', default='vlmo_base_patch16', type=str, metavar='MODEL',
                         help='Name of model to train')
+    parser.add_argument('--model_weight', default='', type=str, 
+                        help='weight to inititialize the model')
 
     parser.add_argument('--image_size', default=224, type=int,
                         help='images input size')

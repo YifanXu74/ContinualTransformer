@@ -66,6 +66,6 @@ def simple_caption_collate_fn(batch):
 
     return {
         "images": torch.stack(images),
-        "images_for_vae": torch.stack(images_for_vae),
+        "images_for_vae": torch.stack(images_for_vae) if images_for_vae[0] is not None else None,
         "raw_text": captions
     }, None

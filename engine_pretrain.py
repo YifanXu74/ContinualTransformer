@@ -51,9 +51,6 @@ def train_one_epoch(model: torch.nn.Module,
             losses, acc = model(samples, args.exp_name)
             loss = sum(losses.values())
         
-        # results post-process
-        metric_logger.update(**acc)
-
 
         loss_value = loss.item()
 
@@ -70,6 +67,7 @@ def train_one_epoch(model: torch.nn.Module,
 
         torch.cuda.synchronize()
 
+        metric_logger.update(**acc)
         metric_logger.update(loss=loss_value)
         losses_value ={k: v for k,v in losses.items()} 
         metric_logger.update(**losses_value)
