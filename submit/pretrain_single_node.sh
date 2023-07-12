@@ -137,3 +137,20 @@ torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py
 # --epochs 100 \
 # --warmup_epochs 0 \
 # --blr 1.5e-3 --weight_decay 0.05
+
+
+torchrun --nnodes=1 --nproc_per_node=2 main_pretrain_cook.py \
+--exp_name image_text_itc \
+--model vlmo_large_patch16 \
+--data_path "/userhome/datasets/pretrain_dataset/400M1/laion400m-data/{00000..19719}.tar" \
+--batch_size 32 \
+--output_dir outputs/debug/ \
+--log_dir outputs/debug/ \
+--resume checkpoints/beit_large_patch16_224_pt22k_ft22k_transfertovlmo.pth \
+--lora_rank 64 \
+--save_per_epochs 20 \
+--epochs 100 \
+--warmup_epochs 0 \
+--blr 1.5e-3 --weight_decay 0.05 \
+--webdataset \
+--train_num_samples 197200000

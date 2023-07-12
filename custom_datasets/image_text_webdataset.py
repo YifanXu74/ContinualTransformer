@@ -393,7 +393,7 @@ def simple_webdataset_collate_fn(batch):
             image = b[0]
             image_vae = b[1]
         else:
-            image = b[0]
+            image = b
             image_vae = None
         images.append(image)
         images_for_vae.append(image_vae)
