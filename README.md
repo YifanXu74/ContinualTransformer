@@ -87,8 +87,8 @@ python util/convert_beit_ckpt.py
 最终得到checkponts目录如下：
 ```
 checkpoints/
-    beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth
-    beit_base_patch16_224_pt22k_ft22kto1k.pth
+    beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth # BEIT MIM预训练权重（转换后）
+    beit_base_patch16_224_pt22k_ft22kto1k.pth # BEIT MIM预训练权重
     dall_e_tokenizer_weight/
         encoder.pkl
         decoder.pkl
@@ -216,7 +216,7 @@ custom_datasets/caption_dataset.py 图文对数据集:
 /userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e4-merged.pth
 ```
 
-文本下游任务可加载上面这个模型，并指定下面参数:
+下游任务可加载上面这些模型，并指定下面参数:
 ```
 --lora_rank 0 --resume $PRETRAINED_CKPT 
 ```
