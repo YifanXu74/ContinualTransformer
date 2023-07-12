@@ -197,6 +197,12 @@ custom_datasets/image_dataset.py 图像数据集:
         "images_for_vae": torch.stack(images_for_vae), # 仅用于预训练，下游finetune不需要，torch.tensor, [B,3,H/2,W/2]
         }, 
         targets # 分类标签，torch.tensor
+custom_datasets/caption_dataset.py 图文对数据集:
+        {
+        "images": torch.stack(images), # 训练用图像, torch.tensor, [B,3,H,W]
+        "images_for_vae": torch.stack(images_for_vae), # torch.tensor, [B,3,H/2,W/2], 仅在设置args.force_vae为True时生效，否则为None
+        "raw_text": text_list, # ['caption1', 'caption2', ...], len(text_list)=B
+        }
 ```
 
 `ImageNet21K图像MIM预训练->CC3M文本MLM预训练`模型权重:
