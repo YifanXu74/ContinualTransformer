@@ -199,7 +199,7 @@ custom_datasets/image_dataset.py 图像数据集:
         targets # 分类标签，torch.tensor
 ```
 
-CC3M文本MLM预训练模型:
+`ImageNet21K图像MIM预训练->CC3M文本MLM预训练`模型权重:
 ```
 /userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth
 /userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e1-merged.pth
