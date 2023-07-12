@@ -117,6 +117,15 @@ def get_args_parser():
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
     parser.add_argument('--second_interpolation', type=str, default='lanczos',
                         help='Interpolation for discrete vae (random, bilinear, bicubic default: "lanczos")')
+    
+    parser.add_argument('--webdataset', action='store_true',
+                        help='choose to use webdataset for ITC dataset or not.')
+    parser.add_argument("--train_num_samples", type=int, default=None,
+                        help="Number of samples in dataset. Required for webdataset if not available in info file.",)
+    parser.add_argument("--train_data_upsampling_factors", type=str, default=None,  help=(
+            "When using multiple data sources with webdataset and sampling with replacement, this can be used to upsample specific data sources. "
+            "Similar to --train-data, this should be a string with as many numbers as there are data sources, separated by `::` (e.g. 1::2::0.5) "
+            "By default, datapoints are sampled uniformly regardless of the dataset sizes."))
 
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
@@ -194,21 +203,23 @@ def main(args):
             dataset_train = custom_datasets.TextDataset(args.data_file_path, args.max_text_len)
             collate_fn = custom_datasets.simple_text_collate_fn
         elif args.exp_name == 'image_text_itc' or args.exp_name == 'compound_pretrain':
-            dataset_train = custom_datasets.CaptionDataset(args.data_file_path, config=args, data_path=args.data_path)
-            collate_fn = custom_datasets.simple_caption_collate_fn
+            if args.webdataset:
+                collate_fn = custom_datasets.simple_webdataset_collate_fn
+                dataset_train = custom_datasets.get_wds_dataset(args, collate_fn=collate_fn)
+            else:
+                dataset_train = custom_datasets.CaptionDataset(args.data_file_path, config=args, data_path=args.data_path)
+                collate_fn = custom_datasets.simple_caption_collate_fn
         else:
             raise NotImplementedError
         print(dataset_train)
 
-        if True:  # args.distributed:
-            num_tasks = misc.get_world_size()
-            global_rank = misc.get_rank()
+        num_tasks = misc.get_world_size()
+        global_rank = misc.get_rank()
+        if not args.webdataset:
             sampler_train = torch.utils.data.DistributedSampler(
                 dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True if not args.debug else False
             )
             print("Sampler_train = %s" % str(sampler_train))
-        else:
-            sampler_train = torch.utils.data.RandomSampler(dataset_train)
 
         if global_rank == 0 and args.log_dir is not None:
             os.makedirs(args.log_dir, exist_ok=True)
@@ -216,14 +227,17 @@ def main(args):
         else:
             log_writer = None
 
-        data_loader_train = torch.utils.data.DataLoader(
-            dataset_train, sampler=sampler_train,
-            batch_size=args.batch_size,
-            num_workers=args.num_workers,
-            pin_memory=args.pin_mem,
-            drop_last=True,
-            collate_fn = collate_fn,
-        )
+        if args.webdataset:
+            data_loader_train = dataset_train.dataloader
+        else:
+            data_loader_train = torch.utils.data.DataLoader(
+                dataset_train, sampler=sampler_train,
+                batch_size=args.batch_size,
+                num_workers=args.num_workers,
+                pin_memory=args.pin_mem,
+                drop_last=True,
+                collate_fn = collate_fn,
+            )
 
 
     
@@ -296,7 +310,10 @@ def main(args):
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
-            data_loader_train.sampler.set_epoch(epoch)
+            if args.webdataset:
+                dataset_train.set_epoch(epoch)
+            elif args.distributed:
+                data_loader_train.sampler.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler,

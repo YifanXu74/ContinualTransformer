@@ -200,15 +200,19 @@ def simple_image_collate_fn(batch):
     images_for_vae = []
     targets = []
     for b in batch:
-        image = b[0][0]
-        image_vae = b[0][1]
+        if isinstance(b[0], (list,tuple)):
+            image = b[0][0]
+            image_vae = b[0][1]
+        else:
+            image = b[0]
+            image_vae = None
         target = b[1]
         images.append(image)
         images_for_vae.append(image_vae)
         targets.append(target)
     samples = {
         "images": torch.stack(images),
-        "images_for_vae": torch.stack(images_for_vae),
+        "images_for_vae": torch.stack(images_for_vae) if images_for_vae[0] is not None else None,
     }
     targets = torch.tensor(targets)
     return samples, targets

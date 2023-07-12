@@ -49,7 +49,7 @@ class ITCHead(nn.Module):
 class MIMHead(nn.Module):
     def __init__(self, config, hidden_dim):
         super().__init__()
-        self.transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.nn.GELU(), nn.LayerNorm(hidden_dim, eps=1e-6))
+        self.transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.GELU(), nn.LayerNorm(hidden_dim, eps=1e-6))
         self.decoder = nn.Linear(hidden_dim, config.img_vocab_size, bias=False)
         self.bias = nn.Parameter(torch.zeros(config.img_vocab_size))
     
