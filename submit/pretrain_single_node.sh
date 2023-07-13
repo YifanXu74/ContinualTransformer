@@ -89,20 +89,21 @@ cd $PROJECT_DIR
 # --blr 1.5e-4 --weight_decay 0.05 \
 # --debug \
 
-torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py \
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_text_itc \
 --model vlmo_base_patch16 \
 --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
 --data_path /mnt/hdd/Datasets/coco2017/ \
---batch_size 1 \
---output_dir outputs/debug/ \
---log_dir outputs/debug/ \
---resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--batch_size 256 \
+--output_dir outputs/coco_itc_load_regloss1e8/ \
+--log_dir outputs/coco_itc_load_regloss1e8/ \
+--resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
 --lora_rank 64 \
 --save_per_epochs 20 \
 --epochs 100 \
 --warmup_epochs 5 \
---blr 1.5e-4 --weight_decay 0.05
+--blr 1.5e-4 --weight_decay 0.05 \
+&> logs/coco_itc_load_regloss1e8.txt
 
 # python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 # --exp_name text_mlm \
@@ -123,21 +124,21 @@ torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py
 
 
 
-torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
---exp_name image_text_itc \
---model vlmo_base_patch16 \
---data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
---data_path /mnt/hdd/Datasets/coco2017/ \
---batch_size 256 \
---output_dir outputs/debug/ \
---log_dir outputs/debug/ \
---resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
---lora_rank 64 \
---save_per_epochs 999999 \
---epochs 100 \
---warmup_epochs 5 \
---blr 1.5e-4 --weight_decay 0.05 \
---disable_aggregate_itc
+# torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+# --exp_name image_text_itc \
+# --model vlmo_base_patch16 \
+# --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
+# --data_path /mnt/hdd/Datasets/coco2017/ \
+# --batch_size 256 \
+# --output_dir outputs/debug/ \
+# --log_dir outputs/debug/ \
+# --resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
+# --lora_rank 64 \
+# --save_per_epochs 999999 \
+# --epochs 100 \
+# --warmup_epochs 5 \
+# --blr 1.5e-4 --weight_decay 0.05 \
+# --disable_aggregate_itc
 
 
 # torchrun --nnodes=1 --nproc_per_node=2 main_pretrain_cook.py \
