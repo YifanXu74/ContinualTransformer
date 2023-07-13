@@ -172,7 +172,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --batch_size 256 \
 --output_dir outputs/image_text_itc_webdataset/ \
 --log_dir outputs/image_text_itc_webdataset/ \
---resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--resume /userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
 --lora_rank 64 \
 --save_per_epochs 20 \
 --epochs 100 \
@@ -193,7 +193,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --batch_size 64 \
 --output_dir outputs/compound_pretrain/ \
 --log_dir outputs/compound_pretrain/ \
---resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--resume /userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
 --lora_rank 64 \
 --save_per_epochs 20 \
 --epochs 100 \
