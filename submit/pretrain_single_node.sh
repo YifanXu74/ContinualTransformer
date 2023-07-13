@@ -124,15 +124,15 @@ torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py
 
 
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
---exp_name image_text_itc_fullmodel \
+--exp_name image_text_itc \
 --model vlmo_base_patch16 \
 --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
 --data_path /mnt/hdd/Datasets/coco2017/ \
 --batch_size 256 \
 --output_dir outputs/debug/ \
 --log_dir outputs/debug/ \
---resume pretrained_models/base-patch16-cc3m-99ep-regloss1e4-merged.pth \
---lora_rank 0 \
+--resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
+--lora_rank 64 \
 --save_per_epochs 999999 \
 --epochs 100 \
 --warmup_epochs 5 \

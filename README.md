@@ -95,6 +95,19 @@ checkpoints/
 ```
 
 
+`ImageNet21K图像MIM预训练->CC3M文本MLM预训练`模型权重，下游任务可加载下面权重:
+```
+/userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e1-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e2-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e3-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e3-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e4-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e4-merged.pth
+/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e8-merged.pth
+/userhome/yfxu/ContinualTransformer-3/merged_checkpoints/large-patch16-opentext100M-8ep-regloss1e4-merged.pth # 大规模训练，模型换成large
+```
+
 
 ## Pre-training
 
@@ -104,7 +117,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_mim \
 --model vlmo_base_patch16 \
 --data_path data/ILSVRC2012/train/ \
---batch_size 128 \
+--batch_size 256 \
 --output_dir outputs/image_mim/ \
 --log_dir outputs/image_mim/ \
 --lora_rank 0 \
@@ -125,7 +138,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --log_dir outputs/text_mlm/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
 --lora_rank 64 \
---reg_loss_weight 1e4 \
+--reg_loss_weight 1e8 \
 --self_regularization \
 --save_per_epochs 20 \
 --epochs 100 \
@@ -140,7 +153,7 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --exp_name image_text_itc \
 --model vlmo_base_patch16 \
 --data_file_path data/CC12M/12m_path.json \
---batch_size 64 \
+--batch_size 256 \
 --output_dir outputs/image_text_itc/ \
 --log_dir outputs/image_text_itc/ \
 --resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
@@ -150,6 +163,26 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 --warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
 ```
+加载webdataset，目前版本需要自己指定训练样本数量:
+```
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+--exp_name image_text_itc \
+--model vlmo_base_patch16 \
+--data_path /userhome/datasets/pretrain_dataset/400M1/laion400m-data/{00000..19719}.tar \
+--batch_size 256 \
+--output_dir outputs/image_text_itc_webdataset/ \
+--log_dir outputs/image_text_itc_webdataset/ \
+--resume checkpoints/beit_base_patch16_224_pt22k_ft22kto1k_transfertovlmo.pth \
+--lora_rank 64 \
+--save_per_epochs 20 \
+--epochs 100 \
+--warmup_epochs 5 \
+--blr 1.5e-4 --weight_decay 0.05 \
+--webdataset \
+--train_num_samples 197200000
+```
+
+
 
 Compound pre-training (MIM + MLM + ITC):
 ```
