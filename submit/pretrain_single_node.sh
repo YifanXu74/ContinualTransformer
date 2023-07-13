@@ -123,34 +123,35 @@ torchrun --nnodes=1 --nproc_per_node=2 --master_port=12345 main_pretrain_cook.py
 
 
 
+torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+--exp_name image_text_itc_fullmodel \
+--model vlmo_base_patch16 \
+--data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
+--data_path /mnt/hdd/Datasets/coco2017/ \
+--batch_size 256 \
+--output_dir outputs/debug/ \
+--log_dir outputs/debug/ \
+--resume pretrained_models/base-patch16-cc3m-99ep-regloss1e4-merged.pth \
+--lora_rank 0 \
+--save_per_epochs 999999 \
+--epochs 100 \
+--warmup_epochs 5 \
+--blr 1.5e-4 --weight_decay 0.05 \
+--disable_aggregate_itc
+
+
 # torchrun --nnodes=1 --nproc_per_node=2 main_pretrain_cook.py \
 # --exp_name image_text_itc \
 # --model vlmo_large_patch16 \
-# --data_file_path /userhome/datasets/downstream/cococaptions_train2017.json \
-# --data_path /userhome/datasets/downstream/coco/ \
+# --data_path "/userhome/datasets/pretrain_dataset/400M1/laion400m-data/{00000..19719}.tar" \
 # --batch_size 32 \
 # --output_dir outputs/debug/ \
 # --log_dir outputs/debug/ \
 # --resume checkpoints/beit_large_patch16_224_pt22k_ft22k_transfertovlmo.pth \
-# --lora_rank 0 \
+# --lora_rank 64 \
 # --save_per_epochs 20 \
 # --epochs 100 \
 # --warmup_epochs 0 \
-# --blr 1.5e-3 --weight_decay 0.05
-
-
-torchrun --nnodes=1 --nproc_per_node=2 main_pretrain_cook.py \
---exp_name image_text_itc \
---model vlmo_large_patch16 \
---data_path "/userhome/datasets/pretrain_dataset/400M1/laion400m-data/{00000..19719}.tar" \
---batch_size 32 \
---output_dir outputs/debug/ \
---log_dir outputs/debug/ \
---resume checkpoints/beit_large_patch16_224_pt22k_ft22k_transfertovlmo.pth \
---lora_rank 64 \
---save_per_epochs 20 \
---epochs 100 \
---warmup_epochs 0 \
---blr 1.5e-3 --weight_decay 0.05 \
---webdataset \
---train_num_samples 197200000
+# --blr 1.5e-3 --weight_decay 0.05 \
+# --webdataset \
+# --train_num_samples 197200000

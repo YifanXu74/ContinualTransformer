@@ -213,6 +213,7 @@ custom_datasets/caption_dataset.py 图文对数据集:
 /userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e3-merged.pth
 /userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e4-merged.pth
 /userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e4-merged.pth
+/userhome/yfxu/ContinualTransformer-3/merged_checkpoints/large-patch16-opentext100M-8ep-regloss1e4-merged.pth # 大规模训练，模型换成large
 ```
 
 下游任务可加载上面这些模型，并指定下面参数:

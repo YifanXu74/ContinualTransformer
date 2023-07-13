@@ -373,9 +373,6 @@ def get_wds_dataset(args, collate_fn = None):
         collate_fn = collate_fn,
     )
 
-
-    
-
     dataloader.num_batches = num_batches
     dataloader.num_samples = num_samples
 

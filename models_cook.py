@@ -469,7 +469,7 @@ class ContinualModel(nn.Module):
             )
             acc['acc_mim'] = self.mim_accuracy(mim_logits, mim_labels)
             return losses, acc
-        elif mode == 'image_text_itc':
+        elif mode in ['image_text_itc', 'image_text_itc_fullmodel', 'image_text_itc_loraA']:
             assert self.training
             losses ={}
 

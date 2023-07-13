@@ -76,7 +76,7 @@ class MLMHead(nn.Module):
 class ITCScoreHead(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.aggregate = config.aggregate_itc
+        self.aggregate = config.aggregate_itc and (not config.disable_aggregate_itc)
     
     def forward(self, image_features, text_features, logit_scale):
         image_features = image_features / image_features.norm(dim=-1, keepdim=True, p=2)

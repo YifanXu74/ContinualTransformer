@@ -145,7 +145,8 @@ def get_args_parser():
                         help="weight of the self-regularization loss")
 
     # cook
-    parser.add_argument('--exp_name', default='text_mlm', type=str, choices=['image_mim', 'text_mlm', 'image_text_itc', 'compound_pretrain'])
+    parser.add_argument('--exp_name', default='text_mlm', type=str, 
+                        choices=['image_mim', 'text_mlm', 'image_text_itc', 'compound_pretrain', 'image_text_itc_fullmodel', 'image_text_itc_loraA'])
 
     # languge modeling 
     parser.add_argument('--max_text_len', default=196, type=int)
@@ -161,6 +162,7 @@ def get_args_parser():
     parser.add_argument('--aggregate_itc', action='store_true',
                         help='gather tensors from all gpus to get more negatives to contrast with.')
     parser.set_defaults(aggregate_itc=True)
+    parser.add_argument('--disable_aggregate_itc', action='store_true')
     parser.add_argument('--force_vae', action='store_true',
                         help='Force to enable vae when load images. This is used when conducting compound_pretraining (MIM + MLM + ITC).')
 
@@ -202,7 +204,7 @@ def main(args):
         elif args.exp_name == 'text_mlm':
             dataset_train = custom_datasets.TextDataset(args.data_file_path, args.max_text_len)
             collate_fn = custom_datasets.simple_text_collate_fn
-        elif args.exp_name == 'image_text_itc' or args.exp_name == 'compound_pretrain':
+        elif args.exp_name in ['image_text_itc', 'compound_pretrain', 'image_text_itc_fullmodel', 'image_text_itc_loraA']:
             if args.webdataset:
                 collate_fn = custom_datasets.simple_webdataset_collate_fn
                 dataset_train = custom_datasets.get_wds_dataset(args, collate_fn=collate_fn)
@@ -295,6 +297,9 @@ def main(args):
     elif args.exp_name == 'image_text_itc':
         assert args.lora_rank > 0
         custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
+    elif args.exp_name == 'image_text_itc_loraA':
+        assert args.lora_rank > 0
+        custom_loralib.mark_only_loraA_as_trainable(model_without_ddp.transformer, exception=args.exception)
     elif args.exp_name == 'compound_pretrain':
         assert args.lora_rank > 0
         assert args.force_vae

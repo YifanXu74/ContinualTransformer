@@ -43,6 +43,10 @@ class MIMProcessor(nn.Module):
         self.d_vae = create_d_vae(weight_path=config.d_vae_weight_path, d_vae_type=config.d_vae_type, image_size=config.image_size, device='cpu')
         self.mim_probability = config.mim_probability
 
+        for _, p in self.d_vae.named_parameters():
+             p.requires_grad = False
+
+
     @torch.no_grad()
     def forward(self, images):
         input_ids = self.d_vae.get_codebook_indices(images).flatten(1)

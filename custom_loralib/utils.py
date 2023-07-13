@@ -48,6 +48,24 @@ def mark_only_loraB_as_trainable(model: nn.Module, bias: str = 'none', exception
     else:
         raise NotImplementedError
 
+def mark_only_loraA_as_trainable(model: nn.Module, bias: str = 'none', exception = []) -> None:
+    for n, p in model.named_parameters():
+        if 'lora_A' not in n and (n not in exception):
+            p.requires_grad = False
+    if bias == 'none':
+        return
+    elif bias == 'all':
+        for n, p in model.named_parameters():
+            if 'bias' in n:
+                p.requires_grad = True
+    elif bias == 'lora_only':
+        for m in model.modules():
+            if isinstance(m, LoRALayer) and \
+                hasattr(m, 'bias') and \
+                m.bias is not None:
+                    m.bias.requires_grad = True
+    else:
+        raise NotImplementedError
 
 def lora_state_dict(model: nn.Module, bias: str = 'none') -> Dict[str, torch.Tensor]:
     my_state_dict = model.state_dict()
