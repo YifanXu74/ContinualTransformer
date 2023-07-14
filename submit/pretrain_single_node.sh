@@ -79,9 +79,9 @@ cd $PROJECT_DIR
 # --batch_size 64 \
 # --output_dir outputs/debug/ \
 # --log_dir outputs/debug/ \
-# --resume outputs/text_mlm_regloss_1e4/checkpoint-80.pth \
+# --resume outputs/text_mlm_regloss_1e8/checkpoint-80.pth \
 # --lora_rank 64 \
-# --reg_loss_weight 1e4 \
+# --reg_loss_weight 1e8 \
 # --self_regularization \
 # --save_per_epochs 20 \
 # --epochs 100 \
@@ -89,21 +89,40 @@ cd $PROJECT_DIR
 # --blr 1.5e-4 --weight_decay 0.05 \
 # --debug \
 
+# torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+# --exp_name image_text_itc_fullmodel \
+# --model vlmo_base_patch16 \
+# --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
+# --data_path /mnt/hdd/Datasets/coco2017/ \
+# --batch_size 256 \
+# --output_dir outputs/coco_itc_fullmodel_load_regloss1e8/ \
+# --log_dir outputs/coco_itc_fullmodel_load_regloss1e8/ \
+# --resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
+# --lora_rank 0 \
+# --save_per_epochs 20 \
+# --epochs 100 \
+# --warmup_epochs 5 \
+# --blr 1.5e-4 --weight_decay 0.05 \
+# &> logs/coco_itc_fullmodel_load_regloss1e8.txt
+
+
 torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
---exp_name image_text_itc \
+--exp_name compound_pretrain_fullmodel \
 --model vlmo_base_patch16 \
 --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
 --data_path /mnt/hdd/Datasets/coco2017/ \
---batch_size 256 \
---output_dir outputs/coco_itc_load_regloss1e8/ \
---log_dir outputs/coco_itc_load_regloss1e8/ \
+--batch_size 128 \
+--output_dir outputs/coco_compound_fullmodel_load_regloss1e8_disable_agg_ll/ \
+--log_dir outputs/coco_compound_fullmodel_load_regloss1e8_disable_agg_ll/ \
 --resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
 --lora_rank 64 \
 --save_per_epochs 20 \
---epochs 100 \
+--epochs 200 \
 --warmup_epochs 5 \
 --blr 1.5e-4 --weight_decay 0.05 \
-&> logs/coco_itc_load_regloss1e8.txt
+--force_vae \
+--disable_aggregate_itc \
+&> logs/coco_compound_fullmodel_train_load_regloss1e8_disable_agg.txt
 
 # python -m torch.distributed.launch --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 # --exp_name text_mlm \
@@ -156,3 +175,22 @@ torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
 # --blr 1.5e-3 --weight_decay 0.05 \
 # --webdataset \
 # --train_num_samples 197200000
+
+
+
+
+# torchrun --nnodes=1 --nproc_per_node=8 main_pretrain_cook.py \
+# --exp_name image_text_itc_fullmodel \
+# --model vlmo_base_patch16 \
+# --data_file_path /mnt/hdd/Datasets/coco2017/annotations/cococaptions_train2017.json \
+# --data_path /mnt/hdd/Datasets/coco2017/ \
+# --batch_size 256 \
+# --output_dir outputs/coco_itc_fullmodel_load_regloss1e8_long/ \
+# --log_dir outputs/coco_itc_fullmodel_load_regloss1e8_long/ \
+# --resume pretrained_models/base-patch16-cc3m-99ep-regloss1e8-merged.pth \
+# --lora_rank 0 \
+# --save_per_epochs 999999999 \
+# --epochs 999999999 \
+# --warmup_epochs 5 \
+# --blr 1.5e-4 --weight_decay 0.05 \
+# &> logs/coco_loop.txt
