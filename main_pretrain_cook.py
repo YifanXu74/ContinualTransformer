@@ -301,7 +301,8 @@ def main(args):
         custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)   
     elif args.exp_name == 'image_text_itc':
         assert args.lora_rank > 0
-        custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
+        # custom_loralib.mark_only_loraB_as_trainable(model_without_ddp.transformer, exception=args.exception)
+        custom_loralib.mark_only_lora_as_trainable(model_without_ddp.transformer, exception=args.exception)
     elif args.exp_name == 'image_text_itc_loraA':
         assert args.lora_rank > 0
         custom_loralib.mark_only_loraA_as_trainable(model_without_ddp.transformer, exception=args.exception)

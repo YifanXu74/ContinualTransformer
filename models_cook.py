@@ -418,8 +418,15 @@ class ContinualModel(nn.Module):
         relative_position_bias_list = self.get_rel_pos_bias(self.relative_position_index)
 
         x = image_embeds
-        for i, blk in enumerate(self.transformer.blocks):
-            x = blk(x, mask=image_masks, relative_position_bias=relative_position_bias_list[i])
+        if self.self_regularization:
+            reg_loss = x.new_zeros(1)[0]
+            for i, blk in enumerate(self.transformer.blocks):
+                x, loss = blk(x, mask=image_masks, relative_position_bias=relative_position_bias_list[i])
+                reg_loss +=loss
+        else:
+            for i, blk in enumerate(self.transformer.blocks):
+                x = blk(x, mask=image_masks, relative_position_bias=relative_position_bias_list[i])
+
         vffn_hiddens = x
         image_features = self.transformer.norm(vffn_hiddens)
 
@@ -429,7 +436,7 @@ class ContinualModel(nn.Module):
             "raw_cls_feats": x[:, 0],
             "labels": labels,
             "masks": image_masks,
-            "reg_loss": None
+            "reg_loss": reg_loss if self.self_regularization else None
         }
         return ret
 
@@ -485,6 +492,10 @@ class ContinualModel(nn.Module):
                 F.cross_entropy(itc_logits['logits_per_image'], itc_labels)
                 + F.cross_entropy(itc_logits['logits_per_text'], itc_labels)
             ) / 2
+
+            if self.self_regularization:
+                losses['reg_loss'] = (ret_img["reg_loss"]+ret_txt["reg_loss"]) / 2 * self.config.reg_loss_weight
+
             acc = {
                 'acc_i2t': self.i2t_acc(itc_logits['logits_per_image'], itc_labels),
                 'acc_t2i': self.t2i_acc(itc_logits['logits_per_text'], itc_labels),
