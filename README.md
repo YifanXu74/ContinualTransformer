@@ -95,20 +95,6 @@ checkpoints/
 ```
 
 
-`ImageNet21K图像MIM预训练->CC3M文本MLM预训练`模型权重，下游任务可加载下面权重:
-```
-/userhome/models/ContinualTransformer/checkpoint-reg1e0-cc3m-100ep-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e1-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e2-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e3-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e3-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-80ep-regloss1e4-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e4-merged.pth
-/userhome/models/ContinualTransformer/base-patch16-cc3m-99ep-regloss1e8-merged.pth
-/userhome/yfxu/ContinualTransformer-3/merged_checkpoints/large-patch16-opentext100M-8ep-regloss1e4-merged.pth # 大规模训练，模型换成large
-```
-
-
 ## Pre-training
 
 Image MIM pre-training:
